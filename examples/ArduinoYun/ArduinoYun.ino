@@ -2,11 +2,12 @@
 #include <ThingerYun.h>
 
 ThingerYun yun("USERNAME", "DEVICE", "CREDENTIAL");
+const int ledPin =  13;
 
 void setup() {
-  pinMode(13, OUTPUT);
+  pinMode(ledPin, OUTPUT);
   Bridge.begin();
-  yun["led"].in() = [](pson& in){ digitalWrite(13, in ? HIGH : LOW); };
+  yun["led"].in() = [](pson& in){ digitalWrite(ledPin, in ? HIGH : LOW); };
 }
 
 void loop() {

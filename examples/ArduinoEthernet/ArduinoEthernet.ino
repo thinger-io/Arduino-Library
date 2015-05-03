@@ -6,7 +6,7 @@ ThingerEthernet arduino("USERNAME", "DEVICE", "CREDENTIAL");
 const int ledPin =  13;
 
 void setup() {
-  pinMode(13, OUTPUT);
+  pinMode(ledPin, OUTPUT);
   arduino["led"].in() = [](pson& in){ digitalWrite(ledPin, in ? HIGH :LOW); };
 }
 
