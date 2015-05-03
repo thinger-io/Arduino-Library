@@ -1,4 +1,4 @@
-Arduino client is a library that allows connecting your IoT devices to the thinger.io cloud platform, or even your private server deployment. This is a library specifically designed for the Arduino IDE, so you can easily connect your devices.
+Arduino client is a library that allows connecting your IoT devices to the [thinger.io](http://thinger.io "thinger.io IoT Cloud Platform") cloud platform, or even your private server deployment. This is a library specifically designed for the Arduino IDE, so you can easily connect your devices.
 
 It supports multiple network interfaces like Ethernet, Wifi, and GSM. It requires the latest Arduino version (at least 1.6.3).
 
