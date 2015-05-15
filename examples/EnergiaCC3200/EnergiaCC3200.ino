@@ -10,7 +10,7 @@ const int ledPin =  13;
 void setup() {
   pinMode(ledPin, OUTPUT);
   cc3200.add_wifi("SSID", "SSID_PASSWORD");
-  cc3200["led"].in() = [](pson& in){ digitalWrite(ledPin, in ? HIGH :LOW); };
+  cc3200["led"] <<= [](pson& in){ digitalWrite(ledPin, in ? HIGH :LOW); };
 }
 
 void loop() {

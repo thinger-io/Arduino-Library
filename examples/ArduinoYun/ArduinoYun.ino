@@ -7,7 +7,7 @@ const int ledPin =  13;
 void setup() {
   pinMode(ledPin, OUTPUT);
   Bridge.begin();
-  yun["led"].in() = [](pson& in){ digitalWrite(ledPin, in ? HIGH : LOW); };
+  yun["led"] <<= [](pson& in){ digitalWrite(ledPin, in ? HIGH : LOW); };
 }
 
 void loop() {

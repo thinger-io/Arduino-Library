@@ -7,7 +7,7 @@ const int ledPin =  13;
 
 void setup() {
   pinMode(ledPin, OUTPUT);
-  arduino["led"].in() = [](pson& in){ digitalWrite(ledPin, in ? HIGH :LOW); };
+  arduino["led"] <<= [](pson& in){ digitalWrite(ledPin, in ? HIGH :LOW); };
 }
 
 void loop() {

@@ -37,12 +37,15 @@
 
 namespace thinger{
 
+    using namespace protoson;
+
     class thinger : public thinger_io{
     public:
         thinger() :
                 encoder(*this),
                 decoder(*this),
-                last_keep_alive(0)
+                last_keep_alive(0),
+                keep_alive_response(true)
         {
         }
 
@@ -53,7 +56,14 @@ namespace thinger{
         thinger_write_encoder encoder;
         thinger_read_decoder decoder;
         unsigned long last_keep_alive;
+        bool keep_alive_response;
         thinger_map<thinger_resource> resources_;
+
+    protected:
+        /**
+         * Can be override to start reconnection process
+         */
+        virtual void disconnected(){}
 
     public:
 
@@ -78,7 +88,7 @@ namespace thinger{
             return true;
         }
 
-        bool call_endpoint(const char* endpoint_name, protoson::pson& data){
+        bool call_endpoint(const char* endpoint_name, pson& data){
             thinger_message message;
             message.set_data(data);
             message.resources().add("ep").add(endpoint_name);
@@ -93,22 +103,29 @@ namespace thinger{
             encoder.pb_encode_varint(message.get_message_type());
             encoder.pb_encode_varint(sink.bytes_written());
             encoder.encode(message);
-            write(NULL, 0);
+            write(NULL, 0, true);
             return true;
         }
 
         void handle(unsigned long current_time, bool bytes_available)
         {
+            // handle input
             if(bytes_available){
                 handle_input();
             }
 
-            // send keep alive if required
-            if(current_time-last_keep_alive > KEEP_ALIVE_MILLIS) {
-                last_keep_alive = current_time;
-                encoder.pb_encode_varint(thinger_message::KEEP_ALIVE);
-                encoder.pb_encode_varint(0);
-                write(NULL, 0);
+            // handle keep alive
+            if(current_time-last_keep_alive>KEEP_ALIVE_MILLIS){
+                if(keep_alive_response){
+                    last_keep_alive = current_time;
+                    keep_alive_response = false;
+                    encoder.pb_encode_varint(thinger_message::KEEP_ALIVE);
+                    encoder.pb_encode_varint(0);
+                    write(NULL, 0, true);
+                }else{
+                    disconnected();
+                    keep_alive_response = true;
+                }
             }
         }
 
@@ -122,6 +139,7 @@ namespace thinger{
                     break;
                 case thinger_message::KEEP_ALIVE: {
                     size_t size = decoder.pb_decode_varint32();
+                    keep_alive_response = true;
                 }
                     return false;
                 default:
@@ -140,66 +158,50 @@ namespace thinger{
 
     private:
 
-        bool is_str(protoson::pson_array& array, const char* str, size_t index=0){
-            size_t current_index = 0;
-            for(protoson::pson_array::iterator it = array.begin(); it.valid() && current_index<=index; it.next()){
-                if(current_index==index) return it.item().is_string() && strcmp(str, (const char*)it.item())==0;
-                current_index++;
-            }
-            return false;
-        }
-
         void handle_request_received(thinger_message& request)
         {
-            if(request.has_resource() && is_str(request.resources(), "api")){
-                thinger_message response(request);
-                protoson::pson_object& content = response.get_data();
-                thinger_map<thinger_resource>::entry* current = resources_.begin();
-                while(current!=NULL){
-                    current->value_.fill_api(content[current->key_]);
-                    current = current->next_;
-                }
-                send_message(response);
-                return;
+            thinger_message response(request);
+            if(!request.has_resource()){
+                response.set_signal_flag(thinger_message::REQUEST_ERROR);
             }
-
-            // TODO integrate streaming resources for websockets and server sent events
-
-            // TODO optimize this section. Code looks so tricky
-            if(request.has_resource()){
-                thinger_message response(request);
-                protoson::pson_array::iterator it = request.resources().begin();
-                thinger_resource * resource_action = NULL;
-                while(it.valid() && it.item().is_string()){
-                    thinger_resource * prev = resource_action;
-                    // first iteration search on root
-                    if(resource_action==NULL){
-                        resource_action = resources_.find(it.item());
-                        // search on sub resource
-                    }else{
-                        resource_action = resource_action->find(it.item());
+            else{
+                thinger_resource * thing_resource = NULL;
+                for(pson_array::iterator it = request.resources().begin(); it.valid(); it.next()){
+                    if(!it.item().is_string()){
+                        response.set_signal_flag(thinger_message::REQUEST_ERROR);
+                        break;
                     }
-                    // at this step something returned should return NULL, so stop searching
-                    if(resource_action==NULL && prev!=NULL){
-                        if(strcmp("api", it.item())==0){
-                            prev->fill_api_io(response.get_data());
-                            send_message(response);
-                            return;
+                    const char* resource = it.item();
+
+                    if(it.has_next()){
+                        thing_resource = thing_resource == NULL ? resources_.find(resource) : thing_resource->find(resource);
+                        if(thing_resource==NULL) {
+                            response.set_signal_flag(thinger_message::REQUEST_ERROR);
+                            break;
                         }
-                        break;
+                    }else{
+                        if(strcmp("api", resource)==0){
+                            if(thing_resource==NULL){
+                                thinger_map<thinger_resource>::entry* current = resources_.begin();
+                                while(current!=NULL){
+                                    current->value_.fill_api(response.get_data()[current->key_]);
+                                    current = current->next_;
+                                }
+                            }else{
+                                thing_resource->fill_api_io(response.get_data());
+                            }
+                        }else{
+                            thing_resource = thing_resource == NULL ? resources_.find(resource) : thing_resource->find(resource);
+                            if(thing_resource==NULL){
+                                response.set_signal_flag(thinger_message::REQUEST_ERROR);
+                            }else{
+                                thing_resource->handle_request(request, response);
+                            }
+                        }
                     }
-                    if(resource_action==NULL){
-                        break;
-                    }
-                    it.next();
                 }
-                if(resource_action!=NULL){
-                    resource_action->handle_request(request, response);
-                }else{
-                    response.set_signal_flag(thinger_message::REQUEST_ERROR);
-                }
-                send_message(response);
             }
+            send_message(response);
         }
     };
 }

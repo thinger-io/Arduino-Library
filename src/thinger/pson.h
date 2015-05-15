@@ -128,6 +128,10 @@ namespace protoson {
                 return true;
             }
 
+            bool has_next(){
+                return current!=NULL && current->next_!=NULL;
+            }
+
             bool valid(){
                 return current!=NULL;
             }

@@ -82,16 +82,6 @@ public:
         return *this;
     }
 
-    thinger_resource & in(){
-        io_type_ = pson_in;
-        return *this;
-    }
-
-    thinger_resource & out(){
-        io_type_ = pson_out;
-        return *this;
-    }
-
     io_type get_io_type(){
         return io_type_;
     }
@@ -127,19 +117,33 @@ public:
 
 public:
 
+    /**
+     * Establish a function without input or output parameters
+     */
     void operator=(void (*run_function)()){
         io_type_ = run;
         callback_.run = run_function;
     }
 
-    void operator=(void (*pson_function)(protoson::pson& in)){
-        if(io_type_ == pson_in){
-            callback_.pson_in = pson_function;
-        }else if(io_type_ == pson_out){
-            callback_.pson_out = pson_function;
-        }
+    /**
+     * Establish a function with input parameters
+     */
+    void operator<<=(void (*in_function)(protoson::pson& in)){
+        io_type_ = pson_in;
+        callback_.pson_in = in_function;
     }
 
+    /**
+     * Establish a function that only generates an output
+     */
+    void operator>>=(void (*out_function)(protoson::pson& out)){
+        io_type_ = pson_out;
+        callback_.pson_out = out_function;
+    }
+
+    /**
+     * Establish a function that can receive input parameters and generate an output
+     */
     void operator=(void (*pson_in_pson_out_function)(protoson::pson& in, protoson::pson& out)){
         io_type_ = pson_in_pson_out;
         callback_.pson_in_pson_out = pson_in_pson_out_function;
