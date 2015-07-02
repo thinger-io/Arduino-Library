@@ -2,6 +2,11 @@ Arduino client is a library that allows connecting your IoT devices to the [thin
 
 It supports multiple network interfaces like Ethernet, Wifi, and GSM. It requires the latest Arduino version (at least 1.6.3).
 
+## Installation
+
+Download this repository as zip, and decompress it under your Arduino library folder with a proper name like thinger or thinger.io. Then start your Arduino and you will find different project examples for the Adafruit CC3000, ESP8266, Energia CC3200, and the WiFi or Ethernet shield. Just modify the user, device and device credentials (and Wifi access point if required) to start the connection of your device with the thinger.io platform. 
+
+
 ## TODO
 
 This library is currently being developed and should not be integrated in any production device until it is more mature and tested. The library interface may change as it evolve to a stable version. Some things that requires attention now are:
