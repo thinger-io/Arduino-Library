@@ -21,54 +21,54 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#ifndef THINGER_WIFI_H
-#define THINGER_WIFI_H
+#ifndef THINGER_CC3000_H
+#define THINGER_CC3000_H
 
 #include "ThingerClient.h"
 
-class ThingerWifi : public ThingerClient {
+// These are the interrupt and control pins
+#define ADAFRUIT_CC3000_IRQ   3  // MUST be an interrupt pin!
+// These can be any two pins
+#define ADAFRUIT_CC3000_VBAT  5
+#define ADAFRUIT_CC3000_CS    10
+// Use hardware SPI for the remaining pins
+// On an UNO, SCK = 13, MISO = 12, and MOSI = 11
+
+class ThingerCC3000 : public ThingerClient {
 
 public:
-    ThingerWifi(const char* user, const char* device, const char* device_credential) :
-            ThingerClient(client_, user, device, device_credential)
-    {}
+    ThingerCC3000(const char* user, const char* device, const char* device_credential) :
+            ThingerClient(client_, user, device, device_credential),
+            cc3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ, ADAFRUIT_CC3000_VBAT, SPI_CLOCK_DIVIDER)
+    {
+    }
 
-    ~ThingerWifi(){
-
+    virtual ~ThingerCC3000(){
+        cc3000.stop();
     }
 
 protected:
 
     virtual bool network_connected(){
-        return WiFi.status() == WL_CONNECTED && WiFi.localIP() != INADDR_NONE;
+        return cc3000.checkConnected();
     }
 
     virtual bool connect_network(){
+        if (!cc3000.begin())
+        {
+            while(1);
+        }
         long wifi_timeout = millis();
-        #ifdef _DEBUG_
-            Serial.println("Connecting to WiFi...");
-        #endif
-        WiFi.begin(wifi_ssid_, wifi_password_);
-        while( WiFi.status() != WL_CONNECTED) {
-            if(millis() - wifi_timeout > 30000) return false;
-            yield();
+        if (cc3000.connectToAP(wifi_ssid_, wifi_password_, WLAN_SEC_WPA2)) {
+            while (!cc3000.checkDHCP())
+            {
+                if(millis() - wifi_timeout > 30000) return false;
+            }
+            return true;
+        }else{
+            cc3000.stop();
+            return false;
         }
-        #ifdef _DEBUG_
-            Serial.println("Connected to WiFi!");
-        #endif
-        wifi_timeout = millis();
-        #ifdef _DEBUG_
-            Serial.println("Getting IP Address...");
-        #endif
-        while (WiFi.localIP() == INADDR_NONE) {
-            if(millis() - wifi_timeout > 30000) return false;
-            yield();
-        }
-        #ifdef _DEBUG_
-            Serial.print("Local IP Address is: ");
-            Serial.println(WiFi.localIP());
-        #endif
-        return true;
     }
 
 public:
@@ -80,8 +80,8 @@ public:
     }
 
 private:
-
-    WiFiClient client_;
+    Adafruit_CC3000 cc3000;
+    Adafruit_CC3000_Client client_;
     char* wifi_ssid_;
     char* wifi_password_;
 };

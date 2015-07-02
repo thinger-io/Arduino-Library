@@ -38,7 +38,8 @@ class ThingerClient : public thinger::thinger {
 
 public:
     ThingerClient(Client& client, const char* user, const char* device, const char* device_credential) :
-            client_(client), username_(user), device_id_(device), device_password_(device_credential)
+            client_(client), username_(user), device_id_(device), device_password_(device_credential),
+            temp_data_(NULL), out_size_(0)
     {
 
     }
@@ -52,11 +53,34 @@ protected:
 
     virtual bool read(char* buffer, size_t size)
     {
-        return client_.readBytes((char*)buffer, size) == size;
+        size_t total_read = 0;
+        while(total_read<size){
+            int read = client_.readBytes((char*)buffer, size-total_read);
+            if(read<0) return false;
+            total_read += read;
+        }
+        return total_read == size;
     }
 
     virtual bool write(const char* buffer, size_t size, bool flush=false){
-        return client_.write((const uint8_t*) buffer, size) == size;
+        if(size>0){
+            temp_data_ = (uint8_t*) realloc(temp_data_, out_size_ + size);
+            memcpy(&temp_data_[out_size_], buffer, size);
+            out_size_ += size;
+        }
+        if(flush){
+            int write = client_.write(temp_data_, out_size_);
+            free(temp_data_);
+            temp_data_ = NULL;
+            out_size_ = 0;
+        }
+    }
+
+    virtual void disconnected(){
+#ifdef _DEBUG_
+    Serial.println("Disconnected by timeout!");
+#endif
+        client_.stop();
     }
 
     virtual bool connect_network(){
@@ -70,17 +94,79 @@ protected:
     bool handle_connection()
     {
         bool network = network_connected();
-        bool client = network && client_.connected();
-        if(!network) network = connect_network();
-        if(network && !client) client = connect_client();
+
+        if(!network){
+            #ifdef _DEBUG_
+            Serial.println("Network not connected! Connecting...");
+            #endif
+            network = connect_network();
+            if(!network){
+                #ifdef _DEBUG_
+                Serial.println("Cannot connect to network!");
+                #endif
+                return false;
+            }
+            #ifdef _DEBUG_
+            else{
+                Serial.println("Network connected!");
+            }
+            #endif
+        }
+
+        bool client = client_.connected();
+        if(!client){
+            #ifdef _DEBUG_
+            Serial.println("Client not connected!");
+            #endif
+            client = connect_client();
+            if(!client){
+            #ifdef _DEBUG_
+            Serial.println("Cannot connect client!");
+            #endif
+                return false;
+            }
+            #ifdef _DEBUG_
+            Serial.println("Client connected!");
+            #endif
+        }
         return network && client;
     }
 
     bool connect_client(){
+        bool connected = false;
+        #ifdef _DEBUG_
+            Serial.print("Connecting to ");
+            Serial.print(THINGER_SERVER);
+            Serial.print(":");
+            Serial.print(THINGER_PORT);
+            Serial.println("...");
+        #endif
         if (client_.connect(THINGER_SERVER, THINGER_PORT)) {
-            return thinger::thinger::connect(username_, device_id_, device_password_);
+            #ifdef _DEBUG_
+            Serial.println("Connected!");
+            #endif
+            #ifdef _DEBUG_
+            Serial.println("Authenticating...");
+            #endif
+            connected = thinger::thinger::connect(username_, device_id_, device_password_);
+            if(!connected){
+                client_.stop();
+                #ifdef _DEBUG_
+                Serial.println("Cannot authenticate! Check your credentials");
+                #endif
+            }
+            #ifdef _DEBUG_
+            else{
+                Serial.println("Authenticated!");
+            }
+            #endif
         }
-        return false;
+        #ifdef _DEBUG_
+        else{
+            Serial.print("Cannot connect!");
+        }
+        #endif
+        return connected;
     }
 
 public:
@@ -97,6 +183,8 @@ private:
     const char* username_;
     const char* device_id_;
     const char* device_password_;
+    uint8_t * temp_data_;
+    size_t out_size_;
 };
 
 #endif
