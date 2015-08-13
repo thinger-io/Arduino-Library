@@ -117,8 +117,7 @@ namespace thinger{
     protected:
         virtual bool read(void* buffer, size_t size){
             memcpy(buffer, buffer_ + read_, size);
-            protoson::pson_decoder::read(buffer, size);
-            return true;
+            return protoson::pson_decoder::read(buffer, size);
         }
 
     private:

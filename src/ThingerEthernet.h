@@ -30,7 +30,7 @@ class ThingerEthernet : public ThingerClient {
 
 public:
     ThingerEthernet(const char* user, const char* device, const char* device_credential) :
-            ThingerClient(client_, user, device, device_credential)
+            ThingerClient(client_, user, device, device_credential), connected_(false)
     {}
 
     ~ThingerEthernet(){
@@ -40,20 +40,40 @@ public:
 protected:
 
     virtual bool network_connected(){
-        client_.connected();
+        return connected_;
     }
 
     virtual bool connect_network(){
+        if(connected_) return true;
         byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
-        long ethernet_timeout = millis();
+        unsigned long ethernet_timeout = millis();
+
+#ifdef _DEBUG_
+        Serial.println(F("[NETWORK] Getting DHCP IP Address..."));
+#endif
+
         while(Ethernet.begin(mac)==0){
-            if(millis() - ethernet_timeout > 30000) return false;
+
+#ifdef _DEBUG_
+        Serial.println(F("[NETWORK] Waiting for IP..."));
+#endif
+            if(millis() - ethernet_timeout > 30000) {
+                delay(1000);
+                return false;
+            }
         }
+
+#ifdef _DEBUG_
+        Serial.print(F("[NETWORK] Got Ip Address: "));
+        Serial.println(Ethernet.localIP());
+#endif
         delay(1000);
-        return true;
+        connected_ = true;
+        return connected_;
     }
 
 private:
+    bool connected_;
     EthernetClient client_;
 };
 

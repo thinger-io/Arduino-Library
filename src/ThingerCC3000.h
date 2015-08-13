@@ -44,7 +44,6 @@ public:
     }
 
     virtual ~ThingerCC3000(){
-        cc3000.stop();
     }
 
 protected:
@@ -56,10 +55,39 @@ protected:
     virtual bool connect_network(){
         if (!cc3000.begin())
         {
+            #ifdef _DEBUG_
+            Serial.println(F("[NETWORK] Cannot initialize CC3000... Check connection!"));
+            #endif
             while(1);
         }
+
+        #ifdef _DEBUG_
+        Serial.println(F("[NETWORK] CC3000 initialized!"));
+        #endif
+
+        // remove socket inactivity timeout
+        unsigned long aucDHCP       = 14400;
+        unsigned long aucARP        = 3600;
+        unsigned long aucKeepalive  = 30;
+        unsigned long aucInactivity = 0;
+        int iRet = netapp_timeout_values(&aucDHCP, &aucARP, &aucKeepalive, &aucInactivity);
+        if (iRet!=0) {
+            #ifdef _DEBUG_
+            Serial.println(F("[NETWORK] Cannot modify netapp timeout!"));
+            #endif
+            while(1);
+        }
+
         long wifi_timeout = millis();
+
+        #ifdef _DEBUG_
+            Serial.print(F("[NETWORK] Connecting to network "));
+            Serial.println(wifi_ssid_);
+        #endif
         if (cc3000.connectToAP(wifi_ssid_, wifi_password_, WLAN_SEC_WPA2)) {
+            #ifdef _DEBUG_
+            Serial.println(F("[NETWORK] Getting IP Address..."));
+            #endif
             while (!cc3000.checkDHCP())
             {
                 if(millis() - wifi_timeout > 30000) return false;

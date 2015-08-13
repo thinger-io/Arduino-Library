@@ -73,6 +73,9 @@ namespace thinger{
 
         bool connect(const char* username, const char* device_id, const char* credential)
         {
+            // reset keep alive status for each connection
+            keep_alive_response = true;
+
             thinger_message message;
             message.resources().add("login").add(username).add(device_id).add(credential);
             if(!send_message(message)) return false;
@@ -84,16 +87,14 @@ namespace thinger{
         bool call_endpoint(const char* endpoint_name){
             thinger_message message;
             message.resources().add("ep").add(endpoint_name);
-            if(!send_message(message)) return false;
-            return true;
+            return send_message(message);
         }
 
         bool call_endpoint(const char* endpoint_name, pson& data){
             thinger_message message;
             message.set_data(data);
             message.resources().add("ep").add(endpoint_name);
-            if(!send_message(message)) return false;
-            return true;
+            return send_message(message);
         }
 
         bool send_message(thinger_message& message)
@@ -103,8 +104,7 @@ namespace thinger{
             encoder.pb_encode_varint(message.get_message_type());
             encoder.pb_encode_varint(sink.bytes_written());
             encoder.encode(message);
-            write(NULL, 0, true);
-            return true;
+            return write(NULL, 0, true);
         }
 
         void handle(unsigned long current_time, bool bytes_available)
@@ -124,7 +124,6 @@ namespace thinger{
                     write(NULL, 0, true);
                 }else{
                     disconnected();
-                    keep_alive_response = true;
                 }
             }
         }

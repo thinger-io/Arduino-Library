@@ -40,32 +40,37 @@ public:
 protected:
 
     virtual bool network_connected(){
-        return WiFi.status() == WL_CONNECTED && WiFi.localIP() != INADDR_NONE;
+        return WiFi.status() == WL_CONNECTED && !(WiFi.localIP() == INADDR_NONE);
     }
 
     virtual bool connect_network(){
         long wifi_timeout = millis();
         #ifdef _DEBUG_
-            Serial.println("Connecting to WiFi...");
+            Serial.print(F("[NETWORK] Connecting to network "));
+            Serial.println(wifi_ssid_);
         #endif
         WiFi.begin(wifi_ssid_, wifi_password_);
         while( WiFi.status() != WL_CONNECTED) {
             if(millis() - wifi_timeout > 30000) return false;
+            #ifdef ESP8266
             yield();
+            #endif
         }
         #ifdef _DEBUG_
-            Serial.println("Connected to WiFi!");
+            Serial.println(F("[NETWORK] Connected to WiFi!"));
         #endif
         wifi_timeout = millis();
         #ifdef _DEBUG_
-            Serial.println("Getting IP Address...");
+            Serial.println(F("[NETWORK] Getting IP Address..."));
         #endif
         while (WiFi.localIP() == INADDR_NONE) {
             if(millis() - wifi_timeout > 30000) return false;
+            #ifdef ESP8266
             yield();
+            #endif
         }
         #ifdef _DEBUG_
-            Serial.print("Local IP Address is: ");
+            Serial.print(F("[NETWORK] Got IP Address: "));
             Serial.println(WiFi.localIP());
         #endif
         return true;

@@ -128,7 +128,7 @@ public:
     /**
      * Establish a function with input parameters
      */
-    void operator<<=(void (*in_function)(protoson::pson& in)){
+    void operator<<(void (*in_function)(protoson::pson& in)){
         io_type_ = pson_in;
         callback_.pson_in = in_function;
     }
@@ -136,7 +136,7 @@ public:
     /**
      * Establish a function that only generates an output
      */
-    void operator>>=(void (*out_function)(protoson::pson& out)){
+    void operator>>(void (*out_function)(protoson::pson& out)){
         io_type_ = pson_out;
         callback_.pson_out = out_function;
     }
