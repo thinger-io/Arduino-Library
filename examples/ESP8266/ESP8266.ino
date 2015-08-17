@@ -17,7 +17,7 @@ void setup() {
   thing.add_wifi(SSID, SSID_PASSWORD);
 
   // resource input example (i.e. turning on/off a light, a relay, configuring a parameter, etc)
-  thing["led"] << [](pson& in){ digitalWrite(BUILTIN_LED, in ? HIGH : LOW); };
+  thing["led"] << [](pson& in){ digitalWrite(BUILTIN_LED, in ? LOW : HIGH); };
 
   // resource output example (i.e. reading a sensor value)
   thing["millis"] >> [](pson& out){ out = millis(); };
