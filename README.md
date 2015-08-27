@@ -4,8 +4,43 @@ It supports multiple network interfaces like Ethernet, Wifi, and GSM. It require
 
 ## Installation
 
-Download this repository as zip, and decompress it under your Arduino library folder with a proper name like thinger or thinger.io. Then start your Arduino and you will find different project examples for the Adafruit CC3000, ESP8266, Energia CC3200, and the WiFi or Ethernet shield. Just modify the user, device and device credentials (and Wifi access point if required) to start the connection of your device with the thinger.io platform. 
+You can easily install the libraries with the **Arduino Library Manager** searching for `thinger.io. If you need more help, please read the topic posted in our [community forum](https://community.thinger.io/t/install-thinger-io-in-arduino-ide/21 "Thinger.io Community Forum"). 
 
+## Defining Resources
+
+In the thinger.io platform, each device or thing can define several resources. A resource is like a function that can be executed remotely in your device in real time. This way you can actuate over your devices like turning on/off lights, or extracting information like reading a sensor value. You can take a look to the examples provided in the library to start setting your own resources. You can define several resources in the setup() method.
+
+There are three different types of resources:
+
+**Input**
+
+Using the operator << pointing to the resource name represents input.
+
+```
+thing["led"] << [](pson& in){
+     digitalWrite(BUILTIN_LED, in ? HIGH : LOW);
+};
+```
+
+**Output**
+
+Using the operator >> pointing out of the resource name means output
+
+```
+thing["millis"] >> [](pson& out){
+      out = millis();
+};
+```
+
+**Input/Output**
+Here it is used the operator = for defining a function that have both input and output
+
+```
+thing["in_out"] = [](pson& in, pson& out){
+      out["sum"] = (long)in["value1"] + (long)in["value2"];
+      out["mult"] = (long)in["value1"] * (long)in["value2"];
+};
+```
 
 ## TODO
 
