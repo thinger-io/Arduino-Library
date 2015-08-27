@@ -4,7 +4,7 @@ It supports multiple network interfaces like Ethernet, Wifi, and GSM. It require
 
 ## Installation
 
-You can easily install the libraries with the **Arduino Library Manager** searching for `thinger.io. If you need more help, please read the topic posted in our [community forum](https://community.thinger.io/t/install-thinger-io-in-arduino-ide/21 "Thinger.io Community Forum"). 
+You can easily install the libraries with the **Arduino Library Manager** searching for `thinger.io`. If you need more help, please read the topic posted in our [community forum](https://community.thinger.io/t/install-thinger-io-in-arduino-ide/21 "Thinger.io Community Forum"). 
 
 ## Defining Resources
 
