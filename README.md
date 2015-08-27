@@ -4,7 +4,7 @@ It supports multiple network interfaces like Ethernet, Wifi, and GSM. It require
 
 ## Installation
 
-You can easily install the libraries with the **Arduino Library Manager** searching for `thinger.io`. If you need more help, please read the topic posted in our [community forum](https://community.thinger.io/t/install-thinger-io-in-arduino-ide/21 "Thinger.io Community Forum"). 
+You can easily install the libraries with the **Arduino Library Manager** searching for `thinger.io. If you need more help, please read the topic posted in our [community forum](https://community.thinger.io/t/install-thinger-io-in-arduino-ide/21 "Thinger.io Community Forum"). 
 
 ## Defining Resources
 
@@ -14,7 +14,7 @@ There are three different types of resources:
 
 **Input**
 
-Using the operator << pointing to the resource name represents input.
+Using the operator << pointing to the resource name represents input. In this case this function takes one parameter of type `pson` that is a variable type that can contain booleans, numbers, floats, strings, or even structured information like in a json document. The following example function will receive a boolean that will allow turning on and off the led.
 
 ```
 thing["led"] << [](pson& in){
@@ -24,7 +24,7 @@ thing["led"] << [](pson& in){
 
 **Output**
 
-Using the operator >> pointing out of the resource name means output
+Using the operator >> pointing out of the resource name means output. As the input function, it contains one `pson` parameter, that will allow storing our output information. In this case each time the function is called it is filled with the `millis()` value (the time the device has been running), but you can put here your sensors readings.
 
 ```
 thing["millis"] >> [](pson& out){
@@ -33,7 +33,7 @@ thing["millis"] >> [](pson& out){
 ```
 
 **Input/Output**
-Here it is used the operator = for defining a function that have both input and output
+Here it is used the operator = for defining a function that have both input and output. In this case the function takes to different `pson` parameters. One for input data and another one for output data. The following example will output the sum and multiplication of two different values (`value1`, and `value2`) provided as input. Notice here how the `pson` structure can store values with keys, like any `json` document. The result provides two different values in `sum` and `mult` keys, that it is translated to `json` when you access them from the API.
 
 ```
 thing["in_out"] = [](pson& in, pson& out){
