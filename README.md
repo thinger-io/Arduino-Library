@@ -33,6 +33,7 @@ thing["millis"] >> [](pson& out){
 ```
 
 **Input/Output**
+
 Here it is used the operator = for defining a function that have both input and output. In this case the function takes to different `pson` parameters. One for input data and another one for output data. The following example will output the sum and multiplication of two different values (`value1`, and `value2`) provided as input. Notice here how the `pson` structure can store values with keys, like any `json` document. The result provides two different values in `sum` and `mult` keys, that it is translated to `json` when you access them from the API.
 
 ```
