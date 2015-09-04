@@ -37,9 +37,11 @@
 class ThingerCC3000 : public ThingerClient {
 
 public:
-    ThingerCC3000(const char* user, const char* device, const char* device_credential) :
-            ThingerClient(client_, user, device, device_credential),
-            cc3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ, ADAFRUIT_CC3000_VBAT, SPI_CLOCK_DIVIDER)
+    ThingerCC3000(const char* user,const char* device,const char* device_credential,
+        const uint8_t cc3000csPin=ADAFRUIT_CC3000_CS,const uint8_t cc3000irqPin=ADAFRUIT_CC3000_IRQ,
+        const uint8_t cc3000vbatPin=ADAFRUIT_CC3000_VBAT) :
+             ThingerClient(client_, user, device, device_credential),
+             cc3000(cc3000csPin, cc3000irqPin, cc3000vbatPin, SPI_CLOCK_DIVIDER)
     {
     }
 
