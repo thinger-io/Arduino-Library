@@ -113,6 +113,13 @@ public:
         }else if(io_type_ == pson_in_pson_out){
             callback_.pson_in_pson_out(content["in"], content["out"]);
         }
+        // initialize empty objects if the function is input or output but there is no any value defined
+        if((io_type_ == pson_in || io_type_ == pson_in_pson_out) && content["in"].is_empty()){
+            protoson::pson_object& empty_object = content["in"];
+        }
+        if((io_type_ == pson_out || io_type_ == pson_in_pson_out) && content["out"].is_empty()){
+            protoson::pson_object& empty_object = content["out"];
+        }
     }
 
 public:
