@@ -156,6 +156,29 @@ namespace protoson {
             clear();
         }
 
+        size_t size() const{
+            size_t size = 0;
+            list_item* current = item_;
+            while(current!=NULL){
+                current = current->next_;
+                size++;
+            }
+            return size;
+        }
+
+        T* operator[](size_t index){
+            list_item* current = item_;
+            size_t current_index = 0;
+            while(current!=NULL){
+                if(current_index==index){
+                    return &current->item_;
+                }
+                current = current->next_;
+                current_index++;
+            }
+            return NULL;
+        }
+
         void clear(){
             list_item* current = item_;
             while(current!=NULL){

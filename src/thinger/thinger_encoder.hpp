@@ -44,15 +44,12 @@ public:
         if(message.get_signal_flag()!=thinger_message::NONE){
             pb_encode_varint(thinger_message::SIGNAL_FLAG, message.get_signal_flag());
         }
-        if(message.get_thing_id()!=NULL){
-            pb_encode_string(message.get_thing_id(), thinger_message::THING_ID);
-        }
         if(message.has_resource()){
             pb_encode_tag(protoson::pson_type, thinger_message::RESOURCE);
             protoson::pson_encoder::encode(message.get_resources());
         }
         if(message.has_data()){
-            pb_encode_tag(protoson::pson_type, thinger_message::PSON);
+            pb_encode_tag(protoson::pson_type, thinger_message::PSON_PAYLOAD);
             protoson::pson_encoder::encode((protoson::pson&) message);
         }
     }

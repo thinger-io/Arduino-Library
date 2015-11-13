@@ -63,7 +63,27 @@ namespace thinger{
         /**
          * Can be override to start reconnection process
          */
-        virtual void disconnected(){}
+        virtual void disconnected(){
+            // stop all streaming resources after disconnect
+            if(thinger_resource::get_streaming_counter()>0) {
+                thinger_map<thinger_resource>::entry* current = resources_.begin();
+                while(current!=NULL){
+                    current->value_.disable_streaming();
+                    current = current->next_;
+                }
+            }
+        }
+
+        /**
+         * Stream a given resource
+         */
+        void stream_resource(thinger_resource& resource, thinger_message::signal_flag type){
+            thinger_message message;
+            message.set_stream_id(resource.get_stream_id());
+            message.set_signal_flag(type);
+            resource.fill_api_io(message.get_data());
+            send_message(message);
+        }
 
     public:
 
@@ -77,7 +97,8 @@ namespace thinger{
             keep_alive_response = true;
 
             thinger_message message;
-            message.resources().add("login").add(username).add(device_id).add(credential);
+            message.set_signal_flag(thinger_message::AUTH);
+            message.resources().add(username).add(device_id).add(credential);
             if(!send_message(message)) return false;
 
             thinger_message response;
@@ -86,22 +107,44 @@ namespace thinger{
 
         bool call_endpoint(const char* endpoint_name){
             thinger_message message;
-            message.resources().add("ep").add(endpoint_name);
+            message.set_signal_flag(thinger_message::CALL_ENDPOINT);
+            message.resources().add(endpoint_name);
             return send_message(message);
         }
 
         bool call_endpoint(const char* endpoint_name, pson& data){
             thinger_message message;
+            message.set_signal_flag(thinger_message::CALL_ENDPOINT);
             message.set_data(data);
-            message.resources().add("ep").add(endpoint_name);
+            message.resources().add(endpoint_name);
             return send_message(message);
+        }
+
+        bool call_endpoint(const char* endpoint_name, thinger_resource& resource){
+            thinger_message message;
+            message.set_signal_flag(thinger_message::CALL_ENDPOINT);
+            message.resources().add(endpoint_name);
+            resource.fill_api_io(message.get_data());
+            return send_message(message);
+        }
+
+        /**
+         * Stream the given resource. This resource should be previously requested by an external process.
+         * Otherwise, the resource will not be streamed as nothing will be listening for it.
+         */
+        bool stream(thinger_resource& resource){
+            if(resource.stream_enabled()){
+                stream_resource(resource, thinger_message::STREAM_EVENT);
+                return true;
+            }
+            return false;
         }
 
         bool send_message(thinger_message& message)
         {
             thinger_encoder sink;
             sink.encode(message);
-            encoder.pb_encode_varint(message.get_message_type());
+            encoder.pb_encode_varint(MESSAGE);
             encoder.pb_encode_varint(sink.bytes_written());
             encoder.encode(message);
             return write(NULL, 0, true);
@@ -119,24 +162,35 @@ namespace thinger{
                 if(keep_alive_response){
                     last_keep_alive = current_time;
                     keep_alive_response = false;
-                    encoder.pb_encode_varint(thinger_message::KEEP_ALIVE);
+                    encoder.pb_encode_varint(KEEP_ALIVE);
                     encoder.pb_encode_varint(0);
                     write(NULL, 0, true);
                 }else{
                     disconnected();
                 }
             }
+
+            // handle streaming resources
+            if(thinger_resource::get_streaming_counter()>0){
+                thinger_map<thinger_resource>::entry* current = resources_.begin();
+                while(current!=NULL){
+                    if(current->value_.stream_required(current_time)){
+                        stream_resource(current->value_, thinger_message::STREAM_SAMPLE);
+                    }
+                    current = current->next_;
+                }
+            }
         }
 
         bool read_message(thinger_message& message){
-            uint8_t message_type = decoder.pb_decode_varint32();
-            switch (message_type){
-                case thinger_message::MESSAGE: {
+            uint8_t type = decoder.pb_decode_varint32();
+            switch (type){
+                case MESSAGE: {
                     size_t size = decoder.pb_decode_varint32();
                     decoder.decode(message, size);
                 }
                     break;
-                case thinger_message::KEEP_ALIVE: {
+                case KEEP_ALIVE: {
                     size_t size = decoder.pb_decode_varint32();
                     keep_alive_response = true;
                 }

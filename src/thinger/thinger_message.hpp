@@ -28,53 +28,97 @@
 
 namespace thinger{
 
+    enum message_type{
+        MESSAGE             = 1,
+        KEEP_ALIVE          = 2
+    };
+
     class thinger_message{
-    public:
-        enum message_type{ MESSAGE = 1, KEEP_ALIVE = 2 };
-        enum signal_flag { NONE=0, REQUEST_OK = 1, REQUEST_ERROR = 2 };
-        enum fields{ STREAM_ID = 1, SIGNAL_FLAG = 2, THING_ID = 3, RESOURCE = 4, ACTION = 5, PSON = 6};
 
     public:
 
-        thinger_message(thinger_message& other) : message_type_(other.message_type_), stream_id(other.stream_id), flag(REQUEST_OK), thing_id(NULL), resource(NULL), data(NULL), data_allocated(false){
-        }
+        // fields for a thinger message (encoded as in protocol buffers)
+        enum fields{
+            STREAM_ID       = 1,
+            SIGNAL_FLAG     = 2,
+            UNUSED          = 3,
+            RESOURCE        = 4,
+            UNUSED2         = 5,
+            PSON_PAYLOAD    = 6
+        };
 
-        thinger_message() : message_type_(MESSAGE), stream_id(0), flag(NONE), thing_id(NULL), resource(NULL), data(NULL), data_allocated(false)
+        // flags for describing a thinger message
+        enum signal_flag {
+            // GENERAL USED FLAGS
+            REQUEST_OK          = 1,    // the request with the given stream id was successful
+            REQUEST_ERROR       = 2,    // the request with the given stream id failed
+
+            // SENT BY THE SERVER
+            NONE                = 0,    // default resource action: just execute the given resource
+            START_STREAM        = 3,    // enable a streaming resource (with stream_id, and resource filled, sample interval (in payload) is optional)
+            STOP_STREAM         = 4,    // stop the streaming resource (with stream_id, and resource filled)
+
+            // SENT BY DEVICE
+            AUTH                = 5,
+            STREAM_EVENT        = 6,    // means that the message data is related to a stream event
+            STREAM_SAMPLE       = 7,    // means that the message is related to a periodical streaming sample
+            CALL_ENDPOINT       = 8     // call the endpoint with the provided name (endpoint in resource, value passed in payload)
+        };
+
+    public:
+
+        /**
+         * Initialize a default response  message setting the same stream id of the source message,
+         * and initializing the signal flag to ok. All remaining data or fields are empty
+         */
+        thinger_message(thinger_message& other) :
+            stream_id(other.stream_id),
+            flag(REQUEST_OK),
+            resource(NULL),
+            data(NULL),
+            data_allocated(false)
+        {}
+
+        /**
+         * Initialize a default empty message
+         */
+        thinger_message() :
+                stream_id(0),
+                flag(NONE),
+                resource(NULL),
+                data(NULL),
+                data_allocated(false)
         {}
 
         ~thinger_message(){
-            protoson::pool.deallocate(thing_id);
+            // deallocate resource
             destroy(resource, protoson::pool);
+            // deallocate paylaod if was allocated here
             if(data_allocated){
                 destroy(data, protoson::pool);
             }
         }
 
     private:
-        message_type message_type_;
-        uint32_t stream_id;
+        /// used for identifying a unique stream
+        uint16_t stream_id;
+        /// used for setting a stream signal
         signal_flag flag;
-        char* thing_id;
+        /// used to identify a device resource
         protoson::pson* resource;
+        /// used to fill a data payload in the message
         protoson::pson* data;
+        /// flag to determine when the payload has been reserved
         bool data_allocated;
 
     public:
 
-        message_type get_message_type(){
-            return message_type_;
-        }
-
-        uint32_t get_stream_id(){
+        uint16_t get_stream_id(){
             return stream_id;
         }
 
         signal_flag get_signal_flag(){
             return flag;
-        }
-
-        const char* get_thing_id(){
-            return thing_id;
         }
 
         bool has_data(){
@@ -86,22 +130,12 @@ namespace thinger{
         }
 
     public:
-        void set_stream_id(uint32_t stream_id) {
+        void set_stream_id(uint16_t stream_id) {
             thinger_message::stream_id = stream_id;
         }
 
         void set_signal_flag(signal_flag const &flag) {
             thinger_message::flag = flag;
-        }
-
-        void set_thing_id(const char *thing_id) {
-            size_t str_size = strlen(thing_id);
-            this->thing_id = (char*)protoson::pool.allocate(str_size+1);
-            memcpy(this->thing_id, thing_id, str_size+1);
-        }
-
-        void set_message_type(message_type type){
-            message_type_ = type;
         }
 
     public:

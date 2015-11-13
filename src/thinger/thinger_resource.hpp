@@ -49,8 +49,13 @@ public:
         NONE        = 3
     };
 
+    static int get_streaming_counter(){
+        return streaming_count_;
+    }
+
 private:
 
+    // calback for function, input, output, or input/output
     union callback{
         void (*run)();
         void (*pson_in)(protoson::pson& in);
@@ -58,14 +63,58 @@ private:
         void (*pson_in_pson_out)(protoson::pson& in, protoson::pson& out);
     };
 
+    // used for defining the resource
     io_type io_type_;
     access_type access_type_;
     callback callback_;
+
+    // used for allowing resource streaming (both periodically or by events)
+    uint16_t stream_id_;
+
+    // used for periodic stream events
+    unsigned long streaming_freq_;
+    unsigned long last_streaming_;
+
+    // used to know the total number of streams
+    static unsigned int streaming_count_;
+
+    // TODO change to pointer so it is not using more than a pointer size if not used?
     thinger_map<thinger_resource> sub_resources_;
 
+    void enable_streaming(uint16_t stream_id, unsigned long streaming_freq){
+        stream_id_ = stream_id;
+        streaming_freq_ = streaming_freq;
+        last_streaming_ = 0;
+        streaming_count_++;
+    }
+
 public:
-    thinger_resource() : io_type_(none), access_type_(PRIVATE)
-    {
+    thinger_resource() : io_type_(none), access_type_(PRIVATE), stream_id_(0), streaming_freq_(0), last_streaming_(0)
+    {}
+
+    void disable_streaming(){
+        stream_id_ = 0;
+        streaming_freq_ = 0;
+        streaming_count_--;
+    }
+
+    bool stream_enabled(){
+        return stream_id_ > 0;
+    }
+
+    uint32_t get_stream_id(){
+        return stream_id_;
+    }
+
+    bool stream_required(unsigned long timestamp){
+        // sample interval is activated
+        if(streaming_freq_>0){
+            if(timestamp-last_streaming_>=streaming_freq_){
+                last_streaming_ = timestamp;
+                return true;
+            }
+        }
+        return false;
     }
 
     thinger_resource * find(const char* res)
@@ -113,13 +162,6 @@ public:
         }else if(io_type_ == pson_in_pson_out){
             callback_.pson_in_pson_out(content["in"], content["out"]);
         }
-        // initialize empty objects if the function is input or output but there is no any value defined
-        if((io_type_ == pson_in || io_type_ == pson_in_pson_out) && content["in"].is_empty()){
-            protoson::pson_object& empty_object = content["in"];
-        }
-        if((io_type_ == pson_out || io_type_ == pson_in_pson_out) && content["out"].is_empty()){
-            protoson::pson_object& empty_object = content["out"];
-        }
     }
 
 public:
@@ -133,9 +175,25 @@ public:
     }
 
     /**
+     * Establish a function without input or output parameters
+     */
+    void set_function(void (*run_function)()){
+        io_type_ = run;
+        callback_.run = run_function;
+    }
+
+    /**
      * Establish a function with input parameters
      */
     void operator<<(void (*in_function)(protoson::pson& in)){
+        io_type_ = pson_in;
+        callback_.pson_in = in_function;
+    }
+
+    /**
+     * Establish a function with input parameters
+     */
+    void set_input(void (*in_function)(protoson::pson& in)){
         io_type_ = pson_in;
         callback_.pson_in = in_function;
     }
@@ -149,6 +207,14 @@ public:
     }
 
     /**
+     * Establish a function that only generates an output
+     */
+    void set_output(void (*out_function)(protoson::pson& out)){
+        io_type_ = pson_out;
+        callback_.pson_out = out_function;
+    }
+
+    /**
      * Establish a function that can receive input parameters and generate an output
      */
     void operator=(void (*pson_in_pson_out_function)(protoson::pson& in, protoson::pson& out)){
@@ -156,25 +222,53 @@ public:
         callback_.pson_in_pson_out = pson_in_pson_out_function;
     }
 
+    /**
+     * Establish a function that can receive input parameters and generate an output
+     */
+    void set_input_output(void (*pson_in_pson_out_function)(protoson::pson& in, protoson::pson& out)){
+        io_type_ = pson_in_pson_out;
+        callback_.pson_in_pson_out = pson_in_pson_out_function;
+    }
+
+    /**
+     * Handle a request and fill a possible response
+     */
     void handle_request(thinger_message& request, thinger_message& response){
-        switch (io_type_){
-            case run:
-                callback_.run();
+        switch(request.get_signal_flag()){
+            // default action over the stream (run the resource)
+            case thinger_message::NONE:
+                switch (io_type_){
+                    case run:
+                        callback_.run();
+                        break;
+                    case pson_in:
+                        callback_.pson_in(request);
+                        break;
+                    case pson_out:
+                        callback_.pson_out(response);
+                        break;
+                    case pson_in_pson_out:
+                        callback_.pson_in_pson_out(request, response);
+                        break;
+                    case none:
+                        break;
+                }
                 break;
-            case pson_in:
-                callback_.pson_in(request);
+            // flag for starting a resource stream
+            case thinger_message::START_STREAM:
+                enable_streaming(request.get_stream_id(), request.get_data());
                 break;
-            case pson_out:
-                callback_.pson_out(response);
+            // flat for stopping a resource stream
+            case thinger_message::STOP_STREAM:
+                disable_streaming();
                 break;
-            case pson_in_pson_out:
-                callback_.pson_in_pson_out(request, response);
-                break;
-            case none:
+            default:
                 break;
         }
     }
 };
+
+    unsigned int thinger_resource::streaming_count_ = 0;
 
 }
 

@@ -43,11 +43,13 @@ namespace thinger{
                         uint32_t size = pb_decode_varint32();
                         void *data = NULL;
                         switch (field_number) {
+                            /*
                             case thinger_message::THING_ID:
                                 data = protoson::pool.allocate(size + 1);
                                 pb_read_string((char *) data, size);
                                 message.set_thing_id((const char *) data);
                                 break;
+                            */
                             default:
                                 pb_skip(size);
                                 break;
@@ -73,7 +75,7 @@ namespace thinger{
                             case thinger_message::RESOURCE:
                                 protoson::pson_decoder::decode(message.get_resources());
                                 break;
-                            case thinger_message::PSON:
+                            case thinger_message::PSON_PAYLOAD:
                                 protoson::pson_decoder::decode(((protoson::pson&) message));
                                 break;
                             default:
@@ -116,8 +118,12 @@ namespace thinger{
 
     protected:
         virtual bool read(void* buffer, size_t size){
-            memcpy(buffer, buffer_ + read_, size);
-            return protoson::pson_decoder::read(buffer, size);
+            if(read_+size<=size_){
+                memcpy(buffer, buffer_ + read_, size);
+                return protoson::pson_decoder::read(buffer, size);
+            }else{
+                return false;
+            }
         }
 
     private:

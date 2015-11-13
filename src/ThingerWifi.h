@@ -78,7 +78,7 @@ protected:
 
 public:
 
-    void add_wifi(char* ssid, char* password)
+    void add_wifi(const char* ssid, const char* password)
     {
         wifi_ssid_ = ssid;
         wifi_password_ = password;
@@ -87,8 +87,8 @@ public:
 private:
 
     WiFiClient client_;
-    char* wifi_ssid_;
-    char* wifi_password_;
+    const char* wifi_ssid_;
+    const char* wifi_password_;
 };
 
 #endif
