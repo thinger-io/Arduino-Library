@@ -266,11 +266,11 @@ namespace protoson {
             return field_type_ == empty;
         }
 
-        pson() : field_type_(empty), value_(NULL) {
+        pson() : value_(NULL), field_type_(empty) {
         }
 
         template<class T>
-        pson(T value) : field_type_(empty), value_(NULL){
+        pson(T value) : value_(NULL), field_type_(empty){
             *this = value;
         }
 
@@ -292,11 +292,7 @@ namespace protoson {
             }else if(value==1) {
                 field_type_ = one_field;
             }else{
-                if(value<0){
-                    field_type_ = svarint_field;
-                }else{
-                    field_type_ = varint_field;
-                }
+                field_type_ = value>0 ? varint_field : svarint_field;
                 uint64_t uint_value = value>0 ? value : -value;
                 value_ = pool.allocate(pson::get_varint_size(uint_value));
                 pb_encode_varint(uint_value);
@@ -338,17 +334,6 @@ namespace protoson {
             }
         }
 
-        operator const char *() {
-            switch(field_type_){
-                case string_field:
-                    return (const char*) value_;
-                case empty:
-                    field_type_ = empty_string;
-                default:
-                    return "";
-            }
-        }
-
         void set_bytes(const void* bytes, size_t size) {
             if(size>0){
                 size_t varint_size = get_varint_size(size);
@@ -383,6 +368,17 @@ namespace protoson {
         operator pson_array &();
         pson & operator[](const char *name);
 
+        operator const char *() {
+            switch(field_type_){
+                case string_field:
+                    return (const char*) value_;
+                case empty:
+                    field_type_ = empty_string;
+                default:
+                    return "";
+            }
+        }
+
         operator bool(){
             switch(field_type_){
                 case zero_field:
@@ -394,12 +390,57 @@ namespace protoson {
                 case empty:
                     field_type_ = false_field;
                 default:
-                    return false;
+                    return 0;
             }
+        }
+
+        operator char(){
+            return get_value<char>();
+        }
+
+        operator unsigned char(){
+            return get_value<unsigned char>();
+        }
+
+        operator short(){
+            return get_value<short>();
+        }
+
+        operator unsigned short(){
+            return get_value<unsigned short>();
+        }
+
+        operator int(){
+            return get_value<int>();
+        }
+
+        operator unsigned int(){
+            return get_value<int>();
+        }
+
+        operator long(){
+            return get_value<long>();
+        }
+
+        operator unsigned long(){
+            return get_value<unsigned long>();
+        }
+
+        operator float(){
+            return get_value<float>();
+        }
+
+        operator double(){
+            return get_value<double>();
         }
 
         template<class T>
         operator T() {
+            return get_value<T>();
+        }
+
+        template<class T>
+        T get_value(){
             switch(field_type_){
                 case zero_field:
                 case false_field:

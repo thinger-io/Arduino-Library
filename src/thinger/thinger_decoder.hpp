@@ -41,19 +41,7 @@ namespace thinger{
                 switch (wire_type) {
                     case protoson::length_delimited:{
                         uint32_t size = pb_decode_varint32();
-                        void *data = NULL;
-                        switch (field_number) {
-                            /*
-                            case thinger_message::THING_ID:
-                                data = protoson::pool.allocate(size + 1);
-                                pb_read_string((char *) data, size);
-                                message.set_thing_id((const char *) data);
-                                break;
-                            */
-                            default:
-                                pb_skip(size);
-                                break;
-                        }
+                        pb_skip(size);
                     }
                         break;
                     case protoson::varint: {

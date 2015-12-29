@@ -83,9 +83,13 @@ private:
 
     void enable_streaming(uint16_t stream_id, unsigned long streaming_freq){
         stream_id_ = stream_id;
+        if(streaming_freq_==0 && streaming_freq>0){
+            streaming_count_++;
+        }else if(streaming_freq_>0 && streaming_freq==0){
+            streaming_count_--;
+        }
         streaming_freq_ = streaming_freq;
         last_streaming_ = 0;
-        streaming_count_++;
     }
 
 public:
@@ -94,8 +98,10 @@ public:
 
     void disable_streaming(){
         stream_id_ = 0;
+        if(streaming_freq_>0){
+            streaming_count_--;
+        }
         streaming_freq_ = 0;
-        streaming_count_--;
     }
 
     bool stream_enabled(){
