@@ -50,7 +50,6 @@ protected:
 
         #ifdef _DEBUG_
         Serial.print(F("[NETWORK] Starting Smart Config... "));
-            Serial.println(wifi_ssid_);
         #endif
 
         digitalWrite(BUILTIN_LED, LOW);
