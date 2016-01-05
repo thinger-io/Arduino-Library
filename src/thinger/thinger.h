@@ -249,6 +249,13 @@ namespace thinger{
                                 response.set_signal_flag(thinger_message::REQUEST_ERROR);
                             }else{
                                 thing_resource->handle_request(request, response);
+                                // stream enabled over a resource input -> notify the current state
+                                if(thing_resource->stream_enabled() && thing_resource->get_io_type()==thinger_resource::pson_in){
+                                    // send normal response
+                                    send_message(response);
+                                    // stream the event to notify the change
+                                    return stream_resource(*thing_resource, thinger_message::STREAM_EVENT);
+                                }
                             }
                         }
                     }

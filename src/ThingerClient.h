@@ -247,4 +247,30 @@ private:
     size_t out_size_;
 };
 
+/**
+ * Some syntactic sugar for defining input/output resources easily
+ */
+
+void digital_pin(protoson::pson& in, int pin){
+    if(in.is_empty()) in = (bool) digitalRead(pin);
+    else digitalWrite(pin, in ? HIGH : LOW);
+}
+
+void inverted_digital_pin(protoson::pson& in, int pin){
+    if(in.is_empty()) in = !(bool) digitalRead(pin);
+    else digitalWrite(pin, in ? LOW : HIGH);
+}
+
+void analog_pin(protoson::pson& in, int pin){
+    if(in.is_empty()) in = analogRead(pin);
+    else analogWrite(pin, in);
+}
+
+#define digitalPin(PIN) [](pson& in){ digital_pin(in, PIN);}
+#define invertedDigitalPin(PIN) [](pson& in){ inverted_digital_pin(in, PIN);}
+#define analogPin(PIN) [](pson& in){ analog_pin(in, PIN);}
+#define inputValue(value, callback) [](pson& in){ if(in.is_empty()){ in = value; } else{ value = in; callback; } }
+#define outputValue(value) [](pson& out){ out = value; }
+#define servo(servo) [](pson& in){ if(in.is_empty()) in = (int)servo.read(); else servo.write((int)in); }
+
 #endif

@@ -40,6 +40,7 @@ public:
 protected:
 
     virtual bool network_connected(){
+        Ethernet.maintain();
         return connected_;
     }
 
