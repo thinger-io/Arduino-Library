@@ -26,13 +26,19 @@
 
 #include "ThingerClient.h"
 
+#define WIFI_CONNECTION_TIMEOUT_MS 15000
+#define IP_ADDRESS_TIMEOUT_MS 30000
+#define SMART_CONFIG_WAIT_MS 60000
+
 class ThingerSmartConfig : public ThingerClient {
 
 public:
-    ThingerSmartConfig(const char* user, const char* device, const char* device_credential) :
-            ThingerClient(client_, user, device, device_credential)
+    ThingerSmartConfig(const char* user, const char* device, const char* device_credential, bool use_led=true) :
+            ThingerClient(client_, user, device, device_credential), use_led_(use_led)
     {
-        pinMode(BUILTIN_LED, OUTPUT);
+        if(use_led_){
+            pinMode(BUILTIN_LED, OUTPUT);
+        }
     }
 
     ~ThingerSmartConfig(){
@@ -46,47 +52,83 @@ protected:
     }
 
     virtual bool connect_network(){
-        long wifi_timeout = millis();
-
-        #ifdef _DEBUG_
-        Serial.print(F("[NETWORK] Starting Smart Config... "));
-        #endif
-
-        digitalWrite(BUILTIN_LED, LOW);
-
-        WiFi.begin(WiFi.SSID().c_str(), WiFi.psk().c_str());
-        while( WiFi.status() != WL_CONNECTED) {
-            if(millis() - wifi_timeout > 15000) continue;
-            yield();
+        // turn off led
+        if(use_led_) {
+            digitalWrite(BUILTIN_LED, HIGH);
         }
 
+        // try to connect to the last known Wifi Network
+        if(WiFi.SSID()!=NULL){
+            #ifdef _DEBUG_
+                Serial.print(F("[NETWORK] Trying to connect to the last known network: "));
+                Serial.println(WiFi.SSID());
+            #endif
+            long wifi_timeout = millis();
+            WiFi.begin(WiFi.SSID().c_str(), WiFi.psk().c_str());
+            while( WiFi.status() != WL_CONNECTED) {
+                if(millis() - wifi_timeout > WIFI_CONNECTION_TIMEOUT_MS) continue;
+                yield();
+            }
+        }
+
+        // if not success connection then start the SmartConfig
         if(WiFi.status() != WL_CONNECTED){
-            wifi_timeout = millis();
+            long wifi_timeout = millis();
+            #ifdef _DEBUG_
+                Serial.println(F("[NETWORK] Waiting Smart Config... "));
+            #endif
+            WiFi.stopSmartConfig();
             WiFi.beginSmartConfig();
             while(!WiFi.smartConfigDone()) {
-                if(millis() - wifi_timeout > 60000){
-                    WiFi.stopSmartConfig();
+                // stop smart config process on timeout
+                if(millis() - wifi_timeout > SMART_CONFIG_WAIT_MS){
                     return false;
                 }
-                digitalWrite(BUILTIN_LED, !digitalRead(BUILTIN_LED));
-                delay(500);
+                // blink led if required, otherwise yield to do network tasks
+                if(use_led_){
+                    digitalWrite(BUILTIN_LED, !digitalRead(BUILTIN_LED));
+                    delay(500);
+                }else{
+                    yield();
+                }
             }
+            #ifdef _DEBUG_
+                Serial.println(F("[NETWORK] Smart Config Process Completed!"));
+            #endif
+        }
+
+        // ensure that the the ESP8266 get connected to the network
+        long wifi_timeout = millis();
+        while(WiFi.status() != WL_CONNECTED) {
+            if(millis() - wifi_timeout > WIFI_CONNECTION_TIMEOUT_MS){
+                #ifdef _DEBUG_
+                    Serial.println(F("[NETWORK] Cannot connect to WiFi! Check the credentials!"));
+                #endif
+                // clear wifi configuration
+                WiFi.disconnect();
+                return false;
+            }
+            yield();
         }
 
         #ifdef _DEBUG_
         Serial.println(F("[NETWORK] Connected to WiFi!"));
         #endif
-        for(int i=0;i<10;i++){
-            digitalWrite(BUILTIN_LED, !digitalRead(BUILTIN_LED));
-            delay(100);
+        // 10 small blinks to notify network connection
+        if(use_led_) {
+            for (int i = 0; i < 10; i++) {
+                digitalWrite(BUILTIN_LED, !digitalRead(BUILTIN_LED));
+                delay(100);
+            }
         }
 
-        wifi_timeout = millis();
         #ifdef _DEBUG_
             Serial.println(F("[NETWORK] Getting IP Address..."));
         #endif
+        // wait for an ip address
+        wifi_timeout = millis();
         while (WiFi.localIP() == INADDR_NONE) {
-            if(millis() - wifi_timeout > 30000) return false;
+            if(millis() - wifi_timeout > IP_ADDRESS_TIMEOUT_MS) return false;
             yield();
         }
         #ifdef _DEBUG_
@@ -97,7 +139,7 @@ protected:
     }
 
 private:
-
+    bool use_led_;
     WiFiClient client_;
 };
 
