@@ -65,7 +65,7 @@ protected:
             #endif
             long wifi_timeout = millis();
             WiFi.begin(WiFi.SSID().c_str(), WiFi.psk().c_str());
-            while(WiFi.status() != WL_CONNECTED && (millis() - wifi_timeout > WIFI_CONNECTION_TIMEOUT_MS)) {
+            while(WiFi.status() != WL_CONNECTED && (millis() - wifi_timeout < WIFI_CONNECTION_TIMEOUT_MS)) {
                 yield();
             }
             #ifdef _DEBUG_
