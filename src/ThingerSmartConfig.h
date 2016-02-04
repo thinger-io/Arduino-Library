@@ -65,10 +65,15 @@ protected:
             #endif
             long wifi_timeout = millis();
             WiFi.begin(WiFi.SSID().c_str(), WiFi.psk().c_str());
-            while( WiFi.status() != WL_CONNECTED) {
-                if(millis() - wifi_timeout > WIFI_CONNECTION_TIMEOUT_MS) continue;
+            while(WiFi.status() != WL_CONNECTED && (millis() - wifi_timeout > WIFI_CONNECTION_TIMEOUT_MS)) {
                 yield();
             }
+            #ifdef _DEBUG_
+                if(WiFi.status() != WL_CONNECTED){
+                    Serial.print(F("[NETWORK] Cannot connect to network: "));
+                    Serial.println(WiFi.SSID());
+                }
+            #endif
         }
 
         // if not success connection then start the SmartConfig
