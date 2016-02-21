@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2015 THINGER LTD
+// Copyright (c) 2016 THINGER LTD
 // Author: alvarolb@gmail.com (Alvaro Luis Bustamante)
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -45,34 +45,24 @@ protected:
 
     virtual bool connect_network(){
         long wifi_timeout = millis();
-        #ifdef _DEBUG_
-            Serial.print(F("[NETWORK] Connecting to network "));
-            Serial.println(wifi_ssid_);
-        #endif
-        WiFi.begin(wifi_ssid_, wifi_password_);
+        THINGER_DEBUG_VALUE("NETWORK", "Connecting to network ", wifi_ssid_);
+        WiFi.begin((char*)wifi_ssid_, (char*) wifi_password_);
         while( WiFi.status() != WL_CONNECTED) {
             if(millis() - wifi_timeout > 30000) return false;
             #ifdef ESP8266
             yield();
             #endif
         }
-        #ifdef _DEBUG_
-            Serial.println(F("[NETWORK] Connected to WiFi!"));
-        #endif
+        THINGER_DEBUG("NETWORK", "Connected to WiFi!");
         wifi_timeout = millis();
-        #ifdef _DEBUG_
-            Serial.println(F("[NETWORK] Getting IP Address..."));
-        #endif
+        THINGER_DEBUG("NETWORK", "Getting IP Address...");
         while (WiFi.localIP() == INADDR_NONE) {
             if(millis() - wifi_timeout > 30000) return false;
             #ifdef ESP8266
             yield();
             #endif
         }
-        #ifdef _DEBUG_
-            Serial.print(F("[NETWORK] Got IP Address: "));
-            Serial.println(WiFi.localIP());
-        #endif
+        THINGER_DEBUG_VALUE("NETWORK", "Got IP Address: ", wifi_ssid_);
         return true;
     }
 

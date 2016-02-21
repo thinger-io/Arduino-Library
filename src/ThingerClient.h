@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2015 THINGER LTD
+// Copyright (c) 2016 THINGER LTD
 // Author: alvarolb@gmail.com (Alvaro Luis Bustamante)
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -36,6 +36,14 @@ memory_allocator& protoson::pool = alloc;
 #define THINGER_PORT 25200
 #define RECONNECTION_TIMEOUT 5000 // milliseconds
 
+#ifdef _DEBUG_
+    #define THINGER_DEBUG(type, text) Serial.print("["); Serial.print(F(type)); Serial.print("] "); Serial.println(F(text));
+    #define THINGER_DEBUG_VALUE(type, text, value) Serial.print("["); Serial.print(F(type)); Serial.print("] "); Serial.print(F(text)); Serial.println(value);
+#else
+    #define THINGER_DEBUG(type, text) void();
+    #define THINGER_DEBUG_VALUE(type, text, value) void();
+#endif
+
 class ThingerClient : public thinger::thinger {
 
 public:
@@ -56,8 +64,14 @@ protected:
     virtual bool read(char* buffer, size_t size)
     {
         size_t total_read = 0;
+        //THINGER_DEBUG_VALUE("THINGER", "Reading bytes: ", size);
         while(total_read<size){
-            int read = client_.readBytes((char*)buffer, size-total_read);
+            // For solving this issue: https://github.com/ntruchsess/arduino_uip/issues/149
+            #ifdef UIPETHERNET_H
+            int read = client_.read((uint8_t*)(buffer+total_read), size-total_read);
+            #else
+            int read = client_.readBytes((char*)buffer+total_read, size-total_read);
+            #endif
             if(read<0) return false;
             total_read += read;
         }
@@ -131,13 +145,13 @@ protected:
         #ifdef _DEBUG_
         switch(state){
             case NETWORK_CONNECTING:
-                Serial.println(F("[NETWORK] Starting connection..."));
+                THINGER_DEBUG("NETWORK", "Starting connection...");
                 break;
             case NETWORK_CONNECTED:
-                Serial.println(F("[NETWORK] Connected!"));
+                THINGER_DEBUG("NETWORK", "Connected!");
                 break;
             case NETWORK_CONNECT_ERROR:
-                Serial.println(F("[NETWORK] Cannot connect!"));
+                THINGER_DEBUG("NETWORK", "Cannot connect!");
                 break;
             case SOCKET_CONNECTING:
                 Serial.print(F("[_SOCKET] Connecting to "));
@@ -147,16 +161,16 @@ protected:
                 Serial.println(F("..."));
                 break;
             case SOCKET_CONNECTED:
-                Serial.println(F("[_SOCKET] Connected!"));
+                THINGER_DEBUG("_SOCKET", "Connected!");
                 break;
             case SOCKET_CONNECTION_ERROR:
-                Serial.println(F("[_SOCKET] Error while connecting!"));
+                THINGER_DEBUG("_SOCKET", "Error while connecting!");
                 break;
             case SOCKET_DISCONNECTED:
-                Serial.println(F("[_SOCKET] Is now closed!"));
+                THINGER_DEBUG("_SOCKET", "Is now closed!");
                 break;
             case SOCKET_TIMEOUT:
-                Serial.println(F("[_SOCKET] Timeout!"));
+                THINGER_DEBUG("_SOCKET", "Timeout!");
                 break;
             case THINGER_AUTHENTICATING:
                 Serial.print(F("[THINGER] Authenticating. User: "));
@@ -165,10 +179,10 @@ protected:
                 Serial.println(device_id_);
                 break;
             case THINGER_AUTHENTICATED:
-                Serial.println(F("[THINGER] Authenticated!"));
+                THINGER_DEBUG("THINGER", "Authenticated");
                 break;
             case THINGER_AUTH_FAILED:
-                Serial.println(F("[THINGER] Auth Failed! Check username, device id, or device credentials."));
+                THINGER_DEBUG("THINGER", "Auth Failed! Check username, device id, or device credentials.");
                 break;
         }
         #endif
@@ -227,8 +241,7 @@ public:
         if(handle_connection()){
             #ifdef _DEBUG_
             if(client_.available()>0){
-                Serial.print(F("[THINGER] Available bytes: "));
-                Serial.println(client_.available());
+                THINGER_DEBUG_VALUE("THINGER", "Available bytes: ", client_.available());
             }
             #endif
             thinger::thinger::handle(millis(), client_.available()>0);

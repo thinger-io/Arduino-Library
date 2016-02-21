@@ -11,27 +11,23 @@
 ThingerWifi thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
 
 void setup() {
-    // set the boards led to output
-    pinMode(RED_LED, OUTPUT);
-    pinMode(GREEN_LED, OUTPUT);
-    pinMode(YELLOW_LED, OUTPUT);
+  // set the boards led to output
+  pinMode(RED_LED, OUTPUT);
+  pinMode(GREEN_LED, OUTPUT);
+  pinMode(YELLOW_LED, OUTPUT);
 
-    // configure wifi network
-    thing.add_wifi(SSID, SSID_PASSWORD);
+  // configure wifi network
+  thing.add_wifi(SSID, SSID_PASSWORD);
 
-    // resource input example (i.e. turning on/off a light, a relay, configuring a parameter, etc)
-    thing["led"]["green"] << [](pson& in){ digitalWrite(GREEN_LED, in ? HIGH : LOW); };
-    thing["led"]["yellow"] << [](pson& in){ digitalWrite(YELLOW_LED, in ? HIGH : LOW); };
-    thing["led"]["red"] << [](pson& in){ digitalWrite(RED_LED, in ? HIGH : LOW); };
+  // pin control example (i.e. turning on/off a light, a relay, etc)
+  thing["led"]["green"] << digitalPin(GREEN_LED);
+  thing["led"]["yellow"] << digitalPin(YELLOW_LED);
+  thing["led"]["red"] << digitalPin(RED_LED);
 
-    // resource output example (i.e. reading a sensor value)
-    thing["millis"] >> [](pson& out){ out = millis(); };
+  // resource output example (i.e. reading a sensor value, a variable, etc)
+  thing["millis"] >> outputValue(millis());
 
-    // resource input/output example (i.e. passing input values and do some calculations)
-    thing["in_out"] = [](pson& in, pson& out){
-        out["sum"] = (long)in["value1"] + (long)in["value2"];
-        out["mult"] = (long)in["value1"] * (long)in["value2"];
-    };
+  // more details at http://docs.thinger.io/arduino/
 }
 
 void loop() {

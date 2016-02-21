@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2015 THINGER LTD
+// Copyright (c) 2016 THINGER LTD
 // Author: alvarolb@gmail.com (Alvaro Luis Bustamante)
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -57,15 +57,11 @@ protected:
     virtual bool connect_network(){
         if (!cc3000.begin())
         {
-            #ifdef _DEBUG_
-            Serial.println(F("[NETWORK] Cannot initialize CC3000... Check connection!"));
-            #endif
+            THINGER_DEBUG("NETWORK", "Cannot initialize CC3000... Check connection!");
             while(1);
         }
 
-        #ifdef _DEBUG_
-        Serial.println(F("[NETWORK] CC3000 initialized!"));
-        #endif
+        THINGER_DEBUG("NETWORK", "CC3000 initialized!");
 
         // remove socket inactivity timeout
         unsigned long aucDHCP       = 14400;
@@ -74,22 +70,15 @@ protected:
         unsigned long aucInactivity = 0;
         int iRet = netapp_timeout_values(&aucDHCP, &aucARP, &aucKeepalive, &aucInactivity);
         if (iRet!=0) {
-            #ifdef _DEBUG_
-            Serial.println(F("[NETWORK] Cannot modify netapp timeout!"));
-            #endif
+            THINGER_DEBUG("NETWORK", "Cannot modify netapp timeout!");
             while(1);
         }
 
         long wifi_timeout = millis();
 
-        #ifdef _DEBUG_
-            Serial.print(F("[NETWORK] Connecting to network "));
-            Serial.println(wifi_ssid_);
-        #endif
+        THINGER_DEBUG_VALUE("NETWORK", "Connecting to network ", wifi_ssid_);
         if (cc3000.connectToAP(wifi_ssid_, wifi_password_, WLAN_SEC_WPA2)) {
-            #ifdef _DEBUG_
-            Serial.println(F("[NETWORK] Getting IP Address..."));
-            #endif
+            THINGER_DEBUG("NETWORK", "Getting IP Address...");
             while (!cc3000.checkDHCP())
             {
                 if(millis() - wifi_timeout > 30000) return false;

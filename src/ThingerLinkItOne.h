@@ -21,50 +21,59 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#ifndef THINGER_ETHERNET_H
-#define THINGER_ETHERNET_H
+#ifndef THINGER_LINKITONE_H
+#define THINGER_LINKITONE_H
 
 #include "ThingerClient.h"
 
-class ThingerEthernet : public ThingerClient {
+class ThingerLinkItOne : public ThingerClient {
 
 public:
-    ThingerEthernet(const char* user, const char* device, const char* device_credential) :
-            ThingerClient(client_, user, device, device_credential), connected_(false)
+    ThingerLinkItOne(const char* user, const char* device, const char* device_credential) :
+            ThingerClient(client_, user, device, device_credential)
     {}
 
-    ~ThingerEthernet(){
+    ~ThingerLinkItOne(){
 
     }
 
 protected:
 
     virtual bool network_connected(){
-        Ethernet.maintain();
-        return connected_;
+        return LWiFi.status() == LWIFI_STATUS_CONNECTED && !(LWiFi.localIP() == INADDR_NONE);
     }
 
     virtual bool connect_network(){
-        if(connected_) return true;
-        byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
-        unsigned long ethernet_timeout = millis();
-        THINGER_DEBUG("NETWORK", "Initializing Ethernet...");
-        while(Ethernet.begin(mac)==0){
-            THINGER_DEBUG("NETWORK", "Getting IP Address...");
-            if(millis() - ethernet_timeout > 30000) {
-                delay(1000);
-                return false;
-            }
+        long wifi_timeout = millis();
+        THINGER_DEBUG_VALUE("NETWORK", "Connecting to network ", wifi_ssid_);
+        LWiFi.begin();
+        while(LWiFi.connect((char*)wifi_ssid_, LWiFiLoginInfo(LWIFI_WPA, wifi_password_))<=0) {
+            if (millis() - wifi_timeout > 30000) return false;
+            delay(100);
         }
-        THINGER_DEBUG_VALUE("NETWORK", "Got IP Address: ", Ethernet.localIP());
-        delay(1000);
-        connected_ = true;
-        return connected_;
+        THINGER_DEBUG("NETWORK", "Connected to LWiFi!");
+        THINGER_DEBUG("NETWORK", "Getting IP Address...");
+        wifi_timeout = millis();
+        while (LWiFi.localIP() == INADDR_NONE) {
+            if(millis() - wifi_timeout > 30000) return false;
+        }
+        THINGER_DEBUG_VALUE("NETWORK", "Got IP Address: ", LWiFi.localIP());
+        return true;
+    }
+
+public:
+
+    void add_wifi(const char* ssid, const char* password)
+    {
+        wifi_ssid_ = ssid;
+        wifi_password_ = password;
     }
 
 private:
-    bool connected_;
-    EthernetClient client_;
+
+    LWiFiClient client_;
+    const char* wifi_ssid_;
+    const char* wifi_password_;
 };
 
 #endif

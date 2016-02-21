@@ -5,9 +5,11 @@ It supports multiple network interfaces like Ethernet, Wifi, and GSM. So you can
 * Arduino + Ethernet
 * Arduino + Wifi
 * Arduino + Adafruit CC3000
+* Arduino + ENC28J60
 * Arduino Yun
-* ESP8266/NodeMCU
+* Any ESP8266 variant like NodeMCU
 * Texas Instruments CC3200
+* SeeedStudio LinkIt ONE
 
 It requires modern Arduino IDE version, starting at 1.6.3.
 

@@ -9,24 +9,20 @@ ThingerYun thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
 const int ledPin =  13;
 
 void setup() {
-    pinMode(ledPin, OUTPUT);
+  pinMode(ledPin, OUTPUT);
 
-    // initialize bridge
-    Bridge.begin();
+  // initialize bridge
+  Bridge.begin();
 
-    // resource input example (i.e. turning on/off a light, a relay, configuring a parameter, etc)
-    thing["led"] << [](pson& in){ digitalWrite(ledPin, in ? HIGH : LOW); };
+  // pin control example (i.e. turning on/off a light, a relay, etc)
+  thing["led"] << digitalPin(ledPin);
 
-    // resource output example (i.e. reading a sensor value)
-    thing["millis"] >> [](pson& out){ out = millis(); };
+  // resource output example (i.e. reading a sensor value, a variable, etc)
+  thing["millis"] >> outputValue(millis());
 
-    // resource input/output example (i.e. passing input values and do some calculations)
-    thing["in_out"] = [](pson& in, pson& out){
-        out["sum"] = (long)in["value1"] + (long)in["value2"];
-        out["mult"] = (long)in["value1"] * (long)in["value2"];
-    };
+  // more details at http://docs.thinger.io/arduino/
 }
 
 void loop() {
-    thing.handle();
+  thing.handle();
 }

@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2015 THINGER LTD
+// Copyright (c) 2016 THINGER LTD
 // Author: alvarolb@gmail.com (Alvaro Luis Bustamante)
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -21,8 +21,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#ifndef THINGERSMARTCONFIG_H
-#define THINGERSMARTCONFIG_H
+#ifndef THINGER_SMARTCONFIG_H
+#define THINGER_SMARTCONFIG_H
 
 #include "ThingerClient.h"
 
@@ -59,10 +59,7 @@ protected:
 
         // try to connect to the last known Wifi Network
         if(WiFi.SSID()!=NULL){
-            #ifdef _DEBUG_
-                Serial.print(F("[NETWORK] Trying to connect to the last known network: "));
-                Serial.println(WiFi.SSID());
-            #endif
+            THINGER_DEBUG_VALUE("NETWORK", "Trying to connect to the last known network: ", WiFi.SSID());
             long wifi_timeout = millis();
             WiFi.begin(WiFi.SSID().c_str(), WiFi.psk().c_str());
             while(WiFi.status() != WL_CONNECTED && (millis() - wifi_timeout < WIFI_CONNECTION_TIMEOUT_MS)) {
@@ -70,8 +67,7 @@ protected:
             }
             #ifdef _DEBUG_
                 if(WiFi.status() != WL_CONNECTED){
-                    Serial.print(F("[NETWORK] Cannot connect to network: "));
-                    Serial.println(WiFi.SSID());
+                    THINGER_DEBUG_VALUE("NETWORK", "Cannot connect to network: ", WiFi.SSID());
                 }
             #endif
         }
@@ -79,9 +75,7 @@ protected:
         // if not success connection then start the SmartConfig
         if(WiFi.status() != WL_CONNECTED){
             long wifi_timeout = millis();
-            #ifdef _DEBUG_
-                Serial.println(F("[NETWORK] Waiting Smart Config... "));
-            #endif
+            THINGER_DEBUG("NETWORK", "Waiting Smart Config...");
             WiFi.stopSmartConfig();
             WiFi.beginSmartConfig();
             while(!WiFi.smartConfigDone()) {
@@ -97,18 +91,14 @@ protected:
                     yield();
                 }
             }
-            #ifdef _DEBUG_
-                Serial.println(F("[NETWORK] Smart Config Process Completed!"));
-            #endif
+            THINGER_DEBUG("NETWORK", "Smart Config Process Completed!");
         }
 
         // ensure that the the ESP8266 get connected to the network
         long wifi_timeout = millis();
         while(WiFi.status() != WL_CONNECTED) {
             if(millis() - wifi_timeout > WIFI_CONNECTION_TIMEOUT_MS){
-                #ifdef _DEBUG_
-                    Serial.println(F("[NETWORK] Cannot connect to WiFi! Check the credentials!"));
-                #endif
+                THINGER_DEBUG("NETWORK", "Cannot connect to WiFi! Check the credentials!");
                 // clear wifi configuration
                 WiFi.disconnect();
                 return false;
@@ -116,9 +106,7 @@ protected:
             yield();
         }
 
-        #ifdef _DEBUG_
-        Serial.println(F("[NETWORK] Connected to WiFi!"));
-        #endif
+        THINGER_DEBUG("NETWORK", "Connected to WiFi!");
         // 10 small blinks to notify network connection
         if(use_led_) {
             for (int i = 0; i < 10; i++) {
@@ -127,19 +115,14 @@ protected:
             }
         }
 
-        #ifdef _DEBUG_
-            Serial.println(F("[NETWORK] Getting IP Address..."));
-        #endif
+        THINGER_DEBUG("NETWORK", "Getting IP Address...");
         // wait for an ip address
         wifi_timeout = millis();
         while (WiFi.localIP() == INADDR_NONE) {
             if(millis() - wifi_timeout > IP_ADDRESS_TIMEOUT_MS) return false;
             yield();
         }
-        #ifdef _DEBUG_
-            Serial.print(F("[NETWORK] Got IP Address: "));
-            Serial.println(WiFi.localIP());
-        #endif
+        THINGER_DEBUG_VALUE("NETWORK", "Got IP Address: ", WiFi.localIP());
         return true;
     }
 

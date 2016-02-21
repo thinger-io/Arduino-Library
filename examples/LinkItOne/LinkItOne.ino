@@ -1,14 +1,13 @@
-#include <SPI.h>
-#include <Ethernet.h>
-#include <ThingerEthernet.h>
+#include <LTask.h>
+#include <LWiFi.h>
+#include <LWiFiClient.h>
+#include <ThingerLinkItOne.h>
 
-#define USERNAME "your_username"
-#define DEVICE_ID "your_device_id"
-#define DEVICE_CREDENTIAL "your_device_credential"
-
-ThingerEthernet thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
+ThingerLinkItOne thing("user_id", "device_id", "device_credential");
 
 void setup() {
+  thing.add_wifi("SSID", "SSID_Password");
+
   pinMode(2, OUTPUT);
 
   // pin control example (i.e. turning on/off a light, a relay, etc)

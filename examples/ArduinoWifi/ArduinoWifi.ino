@@ -12,20 +12,18 @@
 ThingerWifi thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
 
 void setup() {
-    // configure wifi network
-    thing.add_wifi(SSID, SSID_PASSWORD);
+  // configure wifi network
+  thing.add_wifi(SSID, SSID_PASSWORD);
 
-    // resource input example (i.e. turning on/off a light, a relay, configuring a parameter, etc)
-    thing["led"] << [](pson& in){ bool on = in; };
+  pinMode(2, OUTPUT);
 
-    // resource output example (i.e. reading a sensor value)
-    thing["millis"] >> [](pson& out){ out = millis(); };
+  // pin control example (i.e. turning on/off a light, a relay, etc)
+  thing["led"] << digitalPin(2);
 
-    // resource input/output example (i.e. passing input values and do some calculations)
-    thing["in_out"] = [](pson& in, pson& out){
-        out["sum"] = (long)in["value1"] + (long)in["value2"];
-        out["mult"] = (long)in["value1"] * (long)in["value2"];
-    };
+  // resource output example (i.e. reading a sensor value, a variable, etc)
+  thing["millis"] >> outputValue(millis());
+
+  // more details at http://docs.thinger.io/arduino/
 }
 
 void loop() {

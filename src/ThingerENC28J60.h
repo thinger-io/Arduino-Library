@@ -21,43 +21,29 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#ifndef THINGER_ETHERNET_H
-#define THINGER_ETHERNET_H
+#ifndef THINGER_ENC28J60_H
+#define THINGER_ENC28J60_H
 
 #include "ThingerClient.h"
 
-class ThingerEthernet : public ThingerClient {
+class ThingerENC28J60 : public ThingerClient {
 
 public:
-    ThingerEthernet(const char* user, const char* device, const char* device_credential) :
+    ThingerENC28J60(const char* user, const char* device, const char* device_credential) :
             ThingerClient(client_, user, device, device_credential), connected_(false)
     {}
 
-    ~ThingerEthernet(){
+    ~ThingerENC28J60(){
 
     }
 
 protected:
 
     virtual bool network_connected(){
-        Ethernet.maintain();
         return connected_;
     }
 
     virtual bool connect_network(){
-        if(connected_) return true;
-        byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
-        unsigned long ethernet_timeout = millis();
-        THINGER_DEBUG("NETWORK", "Initializing Ethernet...");
-        while(Ethernet.begin(mac)==0){
-            THINGER_DEBUG("NETWORK", "Getting IP Address...");
-            if(millis() - ethernet_timeout > 30000) {
-                delay(1000);
-                return false;
-            }
-        }
-        THINGER_DEBUG_VALUE("NETWORK", "Got IP Address: ", Ethernet.localIP());
-        delay(1000);
         connected_ = true;
         return connected_;
     }
