@@ -26,10 +26,10 @@
 
 #include "ThingerClient.h"
 
-class ThingerLinkItOne : public ThingerClient {
+class ThingerLinkItOneWifi : public ThingerClient {
 
 public:
-    ThingerLinkItOne(const char* user, const char* device, const char* device_credential) :
+    ThingerLinkItOneWifi(const char* user, const char* device, const char* device_credential) :
             ThingerClient(client_, user, device, device_credential)
     {}
 

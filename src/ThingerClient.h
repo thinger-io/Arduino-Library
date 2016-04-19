@@ -282,8 +282,13 @@ void analog_pin(protoson::pson& in, int pin){
 #define digitalPin(PIN) [](pson& in){ digital_pin(in, PIN);}
 #define invertedDigitalPin(PIN) [](pson& in){ inverted_digital_pin(in, PIN);}
 #define analogPin(PIN) [](pson& in){ analog_pin(in, PIN);}
-#define inputValue(value, callback) [](pson& in){ if(in.is_empty()){ in = value; } else{ value = in; callback; } }
 #define outputValue(value) [](pson& out){ out = value; }
 #define servo(servo) [](pson& in){ if(in.is_empty()) in = (int)servo.read(); else servo.write((int)in); }
-
+#define inputValue_1(value) [](pson& in){ if(in.is_empty()){ in = value; } else{ value = in; } }
+#define inputValue_2(value, callback) [](pson& in){ if(in.is_empty()){ in = value; } else{ value = in; callback; } }
+#define inputValue_X(x, value, callback, FUNC, ...)  FUNC
+#define inputValue(...) inputValue_X(,##__VA_ARGS__,\
+                                          inputValue_2(__VA_ARGS__),\
+                                          inputValue_1(__VA_ARGS__)\
+                                    )
 #endif

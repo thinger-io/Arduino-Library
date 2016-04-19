@@ -1,9 +1,9 @@
 #include <LTask.h>
 #include <LWiFi.h>
 #include <LWiFiClient.h>
-#include <ThingerLinkItOne.h>
+#include <ThingerLinkItOneWifi.h>
 
-ThingerLinkItOne thing("user_id", "device_id", "device_credential");
+ThingerLinkItOneWifi thing("user_id", "device_id", "device_credential");
 
 void setup() {
   thing.add_wifi("SSID", "SSID_Password");
