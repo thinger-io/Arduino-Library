@@ -37,7 +37,7 @@ public:
 
 protected:
     virtual bool read(void* buffer, size_t size){
-        file_.readBytes((uint8_t*)buffer, size);
+        file_.readBytes((char*)buffer, size);
         protoson::pson_decoder::read(buffer, size);
         return true;
     }
