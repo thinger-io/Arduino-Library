@@ -264,23 +264,75 @@ private:
  * Some syntactic sugar for defining input/output resources easily
  */
 
+#if defined(__AVR__) || defined(ESP8266)
+
 void digital_pin(protoson::pson& in, int pin){
-    if(in.is_empty()) in = (bool) digitalRead(pin);
-    else digitalWrite(pin, in ? HIGH : LOW);
+    if(in.is_empty()){
+        in = (bool) digitalRead(pin);
+    }
+    else{
+        digitalWrite(pin, in ? HIGH : LOW);
+    }
 }
 
 void inverted_digital_pin(protoson::pson& in, int pin){
-    if(in.is_empty()) in = !(bool) digitalRead(pin);
-    else digitalWrite(pin, in ? LOW : HIGH);
+    if(in.is_empty()){
+        in = !(bool) digitalRead(pin);
+    }
+    else{
+        digitalWrite(pin, in ? LOW : HIGH);
+    }
 }
+
+#else
+
+bool digital_pin(protoson::pson& in, int pin, bool& current_state){
+    if(in.is_empty()) {
+        in = current_state;
+    }
+    else{
+        current_state = in;
+        digitalWrite(pin, current_state ? HIGH : LOW);
+    }
+}
+
+bool inverted_digital_pin(protoson::pson& in, int pin, bool& current_state){
+    if(in.is_empty()) {
+        in = !current_state;
+    }
+    else{
+        current_state = in;
+        digitalWrite(pin, current_state ? LOW : HIGH);
+    }
+}
+#endif
 
 void analog_pin(protoson::pson& in, int pin){
     if(in.is_empty()) in = analogRead(pin);
     else analogWrite(pin, in);
 }
 
-#define digitalPin(PIN) [](pson& in){ digital_pin(in, PIN);}
-#define invertedDigitalPin(PIN) [](pson& in){ inverted_digital_pin(in, PIN);}
+/**
+ * AVR and ESP8266 supports reading the PIN state event if they are of output type. So they
+ * can rely on reading the current pin state directly using the digitalRead function. However,
+ * other devices cannot read the pin state while they are in output mode, so it is necessary to
+ * keep a variable to keep the track of the current value.
+ */
+#if defined(__AVR__) || defined(ESP8266)
+#define digitalPin(PIN) [](pson& in){ digital_pin(in, PIN); }
+#define invertedDigitalPin(PIN) [](pson& in){ inverted_digital_pin(in, PIN); }
+#else
+#define digitalPin(PIN) [](pson& in){               \
+    static bool state = LOW;                        \
+    digital_pin(in, PIN, state);                    \
+}
+#define inverted_digital_pin(PIN) [](pson& in){     \
+    static bool state = LOW;                        \
+    inverted_digital_pin(in, PIN, state);           \
+}
+#endif
+
+
 #define analogPin(PIN) [](pson& in){ analog_pin(in, PIN);}
 #define outputValue(value) [](pson& out){ out = value; }
 #define servo(servo) [](pson& in){ if(in.is_empty()) in = (int)servo.read(); else servo.write((int)in); }
