@@ -21,21 +21,34 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#ifndef THINGER_IO_HPP
-#define THINGER_IO_HPP
+#ifndef THINGER_WIFI101_H
+#define THINGER_WIFI101_H
 
-namespace thinger {
+#include "ThingerWifi.h"
 
-    class thinger_io {
-    public:
-        thinger_io(){}
-        virtual ~thinger_io(){}
+class ThingerWifi101 : public ThingerWifi {
 
-    public:
-        virtual bool read(char *buffer, size_t size) = 0;
-        virtual bool write(const char *buffer, size_t size, bool flush = false) = 0;
-    };
+public:
+    ThingerWifi101(const char* user, const char* device, const char* device_credential, bool ssl = true) :
+            ThingerWifi(user, device, device_credential), ssl_(ssl)
+    {}
 
-}
+    ~ThingerWifi101(){
+
+    }
+
+protected:
+
+    virtual bool connect_socket(){
+        if(ssl_){
+            return client_.connectSSL(THINGER_SERVER, THINGER_SSL_PORT);
+        }else{
+            return client_.connect(THINGER_SERVER, THINGER_PORT);
+        }
+    }
+
+private:
+    bool ssl_;
+};
 
 #endif

@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2016 THINGER LTD
+// Copyright (c) 2016 THINK BIG LABS SL
 // Author: alvarolb@gmail.com (Alvaro Luis Bustamante)
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -34,6 +34,7 @@ memory_allocator& protoson::pool = alloc;
 
 #define THINGER_SERVER "iot.thinger.io"
 #define THINGER_PORT 25200
+#define THINGER_SSL_PORT 25202
 #define RECONNECTION_TIMEOUT 5000 // milliseconds
 
 #ifdef _DEBUG_
@@ -127,6 +128,10 @@ protected:
         return true;
     }
 
+    virtual bool connect_socket(){
+        return client_.connect(THINGER_SERVER, THINGER_PORT);
+    }
+
     enum THINGER_STATE{
         NETWORK_CONNECTING,
         NETWORK_CONNECTED,
@@ -216,7 +221,7 @@ protected:
         bool connected = false;
         client_.stop(); // cleanup previous socket
         thinger_state_listener(SOCKET_CONNECTING);
-        if (client_.connect(THINGER_SERVER, THINGER_PORT)) {
+        if (connect_socket()) {
             thinger_state_listener(SOCKET_CONNECTED);
             thinger_state_listener(THINGER_AUTHENTICATING);
             connected = thinger::thinger::connect(username_, device_id_, device_password_);

@@ -1,5 +1,5 @@
 #include <WiFi101.h>
-#include <ThingerWifi.h>
+#include <ThingerWifi101.h>
 
 #define USERNAME "your_user_name"
 #define DEVICE_ID "your_device_id"
@@ -9,7 +9,7 @@
 #define SSID_PASSWORD "your_wifi_ssid_password"
 #define LED_PIN 6
 
-ThingerWifi thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
+ThingerWifi101 thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
 
 void setup() {
   // configure wifi network
