@@ -1,4 +1,4 @@
-The Arduino Client Library is an easy to use client library to connect your IoT devices to the [thinger.io](http://thinger.io "thinger.io IoT Cloud Platform") IoT platform. This is a library specifically designed for the Arduino IDE, so you can easily install it in your environment and start connecting your devices within minutes.
+The Arduino Client Library is an easy to use client library to connect your IoT devices to the [thinger.io](https://thinger.io "thinger.io IoT Cloud Platform") IoT platform. This is a library specifically designed for the Arduino IDE, so you can easily install it in your environment and start connecting your devices within minutes.
 
 It supports multiple network interfaces like Ethernet, Wifi, and GSM. So you can use it in several devices like the following:
 
@@ -7,9 +7,10 @@ It supports multiple network interfaces like Ethernet, Wifi, and GSM. So you can
 * Arduino + Adafruit CC3000
 * Arduino + ENC28J60
 * Arduino Yun
+* Arduino MKR1000 (With SSL/TLS)
 * Any ESP8266 variant like NodeMCU
 * Texas Instruments CC3200
-* SeeedStudio LinkIt ONE
+* SeeedStudio LinkIt ONE (Both GPRS and WiFi)
 
 It requires modern Arduino IDE version, starting at 1.6.3.
 
