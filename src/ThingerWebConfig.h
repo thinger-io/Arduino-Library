@@ -27,7 +27,8 @@
 #include "ThingerClient.h"
 
 #define CONFIG_FILE "/config.pson"
-
+#define DEVICE_SSID "Thinger-Device"
+#define DEVICE_PSWD "thinger.io"
 
 class pson_spiffs_decoder : public protoson::pson_decoder{
 public:
@@ -77,6 +78,26 @@ public:
 
     }
 
+    void clean_credentials(){
+        THINGER_DEBUG("_CONFIG", "Cleaning credentials...");
+
+        // clean Thinger.io credentials from file system
+        if(SPIFFS.begin()) {
+            THINGER_DEBUG("_CONFIG", "FS Mounted!");
+            if (SPIFFS.exists(CONFIG_FILE)) {
+                THINGER_DEBUG("_CONFIG", "Removing Config File...");
+                if(SPIFFS.remove(CONFIG_FILE)){
+                    THINGER_DEBUG("_CONFIG", "Config file removed!");
+                }else{
+                    THINGER_DEBUG("_CONFIG", "Cannot delete config file!");
+                }
+            }else{
+                THINGER_DEBUG("_CONFIG", "No config file to delete!");
+            }
+            SPIFFS.end();
+        }
+    }
+
 protected:
 
     virtual bool network_connected(){
@@ -84,6 +105,8 @@ protected:
     }
 
     virtual bool connect_network(){
+        bool thingerCredentials = false;
+
         // read current config from file syste
         THINGER_DEBUG("_CONFIG", "Mounting FS...");
         if (SPIFFS.begin()) {
@@ -104,6 +127,8 @@ protected:
                     strcpy(device, config["device"]);
                     strcpy(device_credential, config["credential"]);
 
+                    thingerCredentials = true;
+
                     THINGER_DEBUG_VALUE("_CONFIG", "User: ", user);
                     THINGER_DEBUG_VALUE("_CONFIG", "Device: ", device);
                     THINGER_DEBUG_VALUE("_CONFIG", "Credential: ", device_credential);
@@ -111,23 +136,30 @@ protected:
                     THINGER_DEBUG("_CONFIG", "Config File is Not Available!");
                 }
             }
+            // close SPIFFS
+            SPIFFS.end();
         } else {
             THINGER_DEBUG("_CONFIG", "Failed to Mount FS!");
         }
 
-        WiFiManagerParameter user_parameter("user", "User Id", user, 40);
-        WiFiManagerParameter device_parameter("device", "Device Id", device, 40);
-        WiFiManagerParameter credential_parameter("credential", "Device Credential", device_credential, 40);
-
+        // initialize wifi manager
         WiFiManager wifiManager;
         wifiManager.setDebugOutput(false);
 
+        // define additional wifi parameters
+        WiFiManagerParameter user_parameter("user", "User Id", user, 40);
+        WiFiManagerParameter device_parameter("device", "Device Id", device, 40);
+        WiFiManagerParameter credential_parameter("credential", "Device Credential", device_credential, 40);
         wifiManager.addParameter(&user_parameter);
         wifiManager.addParameter(&device_parameter);
         wifiManager.addParameter(&credential_parameter);
 
         THINGER_DEBUG("_CONFIG", "Starting Webconfig...");
-        if (!wifiManager.autoConnect("Thinger-Device", "thinger.io")) {
+        bool wifiConnected = thingerCredentials ?
+                           wifiManager.autoConnect(DEVICE_SSID, DEVICE_PSWD) :
+                           wifiManager.startConfigPortal(DEVICE_SSID, DEVICE_PSWD);
+
+        if (!wifiConnected) {
             THINGER_DEBUG("NETWORK", "Failed to Connect! Resetting...");
             delay(3000);
             ESP.reset();
@@ -140,18 +172,21 @@ protected:
         strcpy(device_credential, credential_parameter.getValue());
 
         THINGER_DEBUG("_CONFIG", "Updating Device Info...");
-        File configFile = SPIFFS.open(CONFIG_FILE, "w");
-        if(configFile) {
-            pson config;
-            config["user"] = (const char*)user;
-            config["device"] = (const char*)device;
-            config["credential"] = (const char*)device_credential;
-            pson_spiffs_encoder encoder(configFile);
-            encoder.encode(config);
-            configFile.close();
-            THINGER_DEBUG("_CONFIG", "Done!");
-        }else{
-            THINGER_DEBUG("_CONFIG", "Failed to open config file for writing!");
+        if (SPIFFS.begin()) {
+            File configFile = SPIFFS.open(CONFIG_FILE, "w");
+            if (configFile) {
+                pson config;
+                config["user"] = (const char *) user;
+                config["device"] = (const char *) device;
+                config["credential"] = (const char *) device_credential;
+                pson_spiffs_encoder encoder(configFile);
+                encoder.encode(config);
+                configFile.close();
+                THINGER_DEBUG("_CONFIG", "Done!");
+            } else {
+                THINGER_DEBUG("_CONFIG", "Failed to open config file for writing!");
+            }
+            SPIFFS.end();
         }
 
         return true;
