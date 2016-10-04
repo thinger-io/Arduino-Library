@@ -36,6 +36,7 @@ memory_allocator& protoson::pool = alloc;
 #define THINGER_PORT 25200
 #define THINGER_SSL_PORT 25202
 #define RECONNECTION_TIMEOUT 5000 // milliseconds
+#define DEFAULT_READ_TIMEOUT 30000
 
 #ifdef _DEBUG_
     #define THINGER_DEBUG(type, text) Serial.print("["); Serial.print(F(type)); Serial.print("] "); Serial.println(F(text));
@@ -64,6 +65,7 @@ protected:
 
     virtual bool read(char* buffer, size_t size)
     {
+        long start = millis();
         size_t total_read = 0;
         //THINGER_DEBUG_VALUE("THINGER", "Reading bytes: ", size);
         while(total_read<size){
@@ -73,8 +75,13 @@ protected:
             #else
             int read = client_.readBytes((char*)buffer+total_read, size-total_read);
             #endif
-            if(read<0) return false;
             total_read += read;
+            if(read<=0 && (!client_.connected() || abs(millis()-start)>=DEFAULT_READ_TIMEOUT)){
+                #ifdef _DEBUG_
+                THINGER_DEBUG("_SOCKET", "Cannot read from socket!");
+                #endif
+                return false;
+            }
         }
         return total_read == size;
     }
