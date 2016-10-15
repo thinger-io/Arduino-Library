@@ -105,26 +105,52 @@ namespace thinger{
             return read_message(response) && response.get_signal_flag() == thinger_message::REQUEST_OK;
         }
 
+        bool call_device(const char* device_name, const char* resource_name){
+            thinger_message message;
+            message.set_signal_flag(thinger_message::CALL_DEVICE);
+            message.set_identifier(device_name);
+            message.resources().add(resource_name);
+            return send_message(message);
+        }
+
+        bool call_device(const char* device_name, const char* resource_name, pson& data){
+            thinger_message message;
+            message.set_signal_flag(thinger_message::CALL_DEVICE);
+            message.set_identifier(device_name);
+            message.resources().add(resource_name);
+            message.set_data(data);
+            return send_message(message);
+        }
+
+        bool call_device(const char* device_name, const char* resource_name, thinger_resource& resource){
+            thinger_message message;
+            message.set_signal_flag(thinger_message::CALL_DEVICE);
+            message.set_identifier(device_name);
+            message.resources().add(resource_name);
+            resource.fill_output(message.get_data());
+            return send_message(message);
+        }
+
         bool call_endpoint(const char* endpoint_name){
             thinger_message message;
             message.set_signal_flag(thinger_message::CALL_ENDPOINT);
-            message.resources().add(endpoint_name);
+            message.set_identifier(endpoint_name);
             return send_message(message);
         }
 
         bool call_endpoint(const char* endpoint_name, pson& data){
             thinger_message message;
             message.set_signal_flag(thinger_message::CALL_ENDPOINT);
+            message.set_identifier(endpoint_name);
             message.set_data(data);
-            message.resources().add(endpoint_name);
             return send_message(message);
         }
 
         bool call_endpoint(const char* endpoint_name, thinger_resource& resource){
             thinger_message message;
             message.set_signal_flag(thinger_message::CALL_ENDPOINT);
-            message.resources().add(endpoint_name);
-            resource.fill_api_io(message.get_data());
+            message.set_identifier(endpoint_name);
+            resource.fill_output(message.get_data());
             return send_message(message);
         }
 
@@ -225,7 +251,6 @@ namespace thinger{
                         break;
                     }
                     const char* resource = it.item();
-
                     if(it.has_next()){
                         thing_resource = thing_resource == NULL ? resources_.find(resource) : thing_resource->find(resource);
                         if(thing_resource==NULL) {
@@ -261,7 +286,10 @@ namespace thinger{
                     }
                 }
             }
-            send_message(response);
+            // do not send responses to requests without a stream id as they will not reach any destination!
+            if(response.get_stream_id()!=0){
+                send_message(response);
+            }
         }
     };
 }

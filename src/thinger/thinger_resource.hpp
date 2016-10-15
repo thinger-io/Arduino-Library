@@ -170,6 +170,12 @@ public:
         }
     }
 
+    void fill_output(protoson::pson& content){
+        if(io_type_ == pson_out){
+            callback_.pson_out(content);
+        }
+    }
+
 public:
 
     /**

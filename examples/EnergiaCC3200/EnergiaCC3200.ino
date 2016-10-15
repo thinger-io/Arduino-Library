@@ -8,7 +8,7 @@
 #define SSID "your_wifi_ssid"
 #define SSID_PASSWORD "your_wifi_ssid_password"
 
-ThingerWifi thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
+ThingerWifi<> thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
 
 void setup() {
   // set the boards led to output

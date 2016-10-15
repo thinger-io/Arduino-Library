@@ -26,6 +26,7 @@
 
 #include "ThingerClient.h"
 
+template <class Client = WiFiClient>
 class ThingerWifi : public ThingerClient {
 
 public:
@@ -75,8 +76,7 @@ public:
     }
 
 protected:
-
-    WiFiClient client_;
+    Client client_;
     const char* wifi_ssid_;
     const char* wifi_password_;
 };

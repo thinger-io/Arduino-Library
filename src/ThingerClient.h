@@ -32,11 +32,28 @@ dynamic_memory_allocator alloc;
 //circular_memory_allocator<512> alloc;
 memory_allocator& protoson::pool = alloc;
 
-#define THINGER_SERVER "iot.thinger.io"
-#define THINGER_PORT 25200
-#define THINGER_SSL_PORT 25202
-#define RECONNECTION_TIMEOUT 5000 // milliseconds
-#define DEFAULT_READ_TIMEOUT 30000
+#ifndef THINGER_SERVER
+    #define THINGER_SERVER "iot.thinger.io"
+#endif
+
+#ifndef THINGER_PORT
+    #define THINGER_PORT 25200
+#endif
+
+#ifndef THINGER_SSL_PORT
+    #define THINGER_SSL_PORT 25202
+#endif
+
+#ifndef THINGER_TLS_FINGERPRINT
+    #define THINGER_TLS_FINGERPRINT "50 1E ED 5D F3 E1 94 EC 2D 43 1E 22 4E 1D 5E 8B EB 66 8D EA"
+#endif
+
+#ifndef THINGER_TLS_HOST
+    #define THINGER_TLS_HOST "thinger.io"
+#endif
+
+#define RECONNECTION_TIMEOUT 5000   // milliseconds
+#define DEFAULT_READ_TIMEOUT 30000  // milliseconds
 
 #ifdef _DEBUG_
     #define THINGER_DEBUG(type, text) Serial.print("["); Serial.print(F(type)); Serial.print("] "); Serial.println(F(text));
@@ -139,6 +156,10 @@ protected:
         return client_.connect(THINGER_SERVER, THINGER_PORT);
     }
 
+    virtual bool secure_connection(){
+        return false;
+    }
+
     enum THINGER_STATE{
         NETWORK_CONNECTING,
         NETWORK_CONNECTED,
@@ -169,8 +190,10 @@ protected:
                 Serial.print(F("[_SOCKET] Connecting to "));
                 Serial.print(THINGER_SERVER);
                 Serial.print(F(":"));
-                Serial.print(THINGER_PORT);
+                Serial.print(secure_connection() ? THINGER_SSL_PORT : THINGER_PORT);
                 Serial.println(F("..."));
+                Serial.print(F("[_SOCKET] Using secure TLS/SSL connection: "));
+                Serial.println(secure_connection() ? F("yes") : F("no"));
                 break;
             case SOCKET_CONNECTED:
                 THINGER_DEBUG("_SOCKET", "Connected!");

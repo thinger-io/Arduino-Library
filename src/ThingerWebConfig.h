@@ -192,8 +192,21 @@ protected:
         return true;
     }
 
+#ifndef _DISABLE_TLS_
+    virtual bool connect_socket(){
+        return client_.connect(THINGER_SERVER, THINGER_SSL_PORT) && client_.verify(THINGER_TLS_FINGERPRINT, THINGER_TLS_HOST);
+    }
+    virtual bool secure_connection(){
+        return true;
+    }
+#endif
+
 private:
+#ifndef _DISABLE_TLS_
+    WiFiClientSecure client_;
+#else
     WiFiClient client_;
+#endif
     char user[40];
     char device[40];
     char device_credential[40];
