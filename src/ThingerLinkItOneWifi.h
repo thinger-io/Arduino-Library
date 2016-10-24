@@ -33,7 +33,7 @@ public:
             ThingerClient(client_, user, device, device_credential)
     {}
 
-    ~ThingerLinkItOne(){
+    ~ThingerLinkItOneWifi(){
 
     }
 

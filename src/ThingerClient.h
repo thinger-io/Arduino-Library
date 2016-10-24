@@ -367,12 +367,34 @@ void analog_pin(protoson::pson& in, int pin){
 }
 #endif
 
+template <typename T>
+inline bool inputResource(pson& in, T& value){
+    if(in.is_empty()){
+        in = value;
+    } else{
+        value = in;
+        return true;
+    }
+    return false;
+}
+
+template<>
+inline bool inputResource<String>(pson& in, String& value){
+    if(in.is_empty()){
+        in = value;
+    } else{
+        value = (const char*)in;
+        return true;
+    }
+    return false;
+}
 
 #define analogPin(PIN) [](pson& in){ analog_pin(in, PIN);}
 #define outputValue(value) [](pson& out){ out = value; }
+#define outputString(value) [](pson& out){ out = value; }
 #define servo(servo) [](pson& in){ if(in.is_empty()) in = (int)servo.read(); else servo.write((int)in); }
-#define inputValue_1(value) [](pson& in){ if(in.is_empty()){ in = value; } else{ value = in; } }
-#define inputValue_2(value, callback) [](pson& in){ if(in.is_empty()){ in = value; } else{ value = in; callback; } }
+#define inputValue_1(value) [](pson& in){ inputResource(in, value); }
+#define inputValue_2(value, callback) [](pson& in){ if(inputResource(in, value)){callback;}}
 #define inputValue_X(x, value, callback, FUNC, ...)  FUNC
 #define inputValue(...) inputValue_X(,##__VA_ARGS__,\
                                           inputValue_2(__VA_ARGS__),\
