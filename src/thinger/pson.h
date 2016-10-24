@@ -516,6 +516,52 @@ namespace protoson {
             return value;
         }
 
+#ifdef ARDUINO
+        void operator=(const String& str) {
+            size_t str_size = str.length();
+            if(str_size==0){
+                field_type_ = empty_string;
+            }else{
+                field_type_ = string_field;
+                memcpy(allocate(str_size+1), str.c_str(), str_size+1);
+            }
+        }
+
+        operator String() {
+            switch(field_type_){
+                case string_field:
+                    return String((const char*) value_);
+                case empty:
+                    field_type_ = empty_string;
+                default:
+                    return String("");
+            }
+        }
+#endif
+
+#if defined(_LIBCPP_STRING)
+        void operator=(const std::string& str) {
+            size_t str_size = str.size();
+            if(str_size==0){
+                field_type_ = empty_string;
+            }else{
+                field_type_ = string_field;
+                memcpy(allocate(str_size+1), str.c_str(), str_size+1);
+            }
+        }
+
+        operator std::string(){
+            switch(field_type_){
+                case string_field:
+                    return std::string((const char*) value_);
+                case empty:
+                    field_type_ = empty_string;
+                default:
+                    return std::string("");
+            }
+        }
+#endif
+
     private:
         void* value_;
         field_type field_type_;

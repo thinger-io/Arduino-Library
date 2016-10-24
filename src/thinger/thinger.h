@@ -166,6 +166,10 @@ namespace thinger{
             return false;
         }
 
+        bool stream(const char* resource){
+            return stream(resources_[resource]);
+        }
+
         bool send_message(thinger_message& message)
         {
             thinger_encoder sink;
