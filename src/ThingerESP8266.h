@@ -27,14 +27,14 @@
 #include "ThingerWifi.h"
 
 #ifndef _DISABLE_TLS_
-class ThingerESP8266 : public ThingerWifi<WiFiClientSecure>{
+class ThingerESP8266 : public ThingerWifiClient<WiFiClientSecure>{
 #else
-class ThingerESP8266 : public ThingerWifi<>{
+class ThingerESP8266 : public ThingerWifiClient<>{
 #endif
 
 public:
     ThingerESP8266(const char* user, const char* device, const char* device_credential) :
-            ThingerWifi(user, device, device_credential)
+            ThingerWifiClient(user, device, device_credential)
     {}
 
     ~ThingerESP8266(){

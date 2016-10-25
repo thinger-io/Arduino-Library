@@ -27,14 +27,14 @@
 #include "ThingerClient.h"
 
 template <class Client = WiFiClient>
-class ThingerWifi : public ThingerClient {
+class ThingerWifiClient : public ThingerClient {
 
 public:
-    ThingerWifi(const char* user, const char* device, const char* device_credential) :
+    ThingerWifiClient(const char* user, const char* device, const char* device_credential) :
             ThingerClient(client_, user, device, device_credential)
     {}
 
-    ~ThingerWifi(){
+    ~ThingerWifiClient(){
 
     }
 
@@ -80,5 +80,7 @@ protected:
     const char* wifi_ssid_;
     const char* wifi_password_;
 };
+
+#define ThingerWifi ThingerWifiClient<>
 
 #endif
