@@ -11,12 +11,21 @@
 
 #define ARDUINO_LED 13
 
+// Emulate Serial1 on pins 6/7 if not present
+#ifndef HAVE_HWSERIAL1
+#include "SoftwareSerial.h"
+SoftwareSerial Serial1(6, 7); // RX, TX
+#endif
+
 ThingerESP8266AT thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
 
 void setup() {
   pinMode(ARDUINO_LED, OUTPUT);
 
-  // init ESP8266 in the connected serial port
+  // initialize serial for ESP8266
+  Serial1.begin(9600);
+
+  // init ESP8266 in the additional serial port
   WiFi.init(&Serial);
   if(WiFi.status() == WL_NO_SHIELD){
       // don't continue
