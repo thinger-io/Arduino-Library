@@ -343,8 +343,14 @@ bool inverted_digital_pin(protoson::pson& in, int pin, bool& current_state){
 #endif
 
 void analog_pin(protoson::pson& in, int pin){
-    if(in.is_empty()) in = analogRead(pin);
-    else analogWrite(pin, in);
+    static int current = in;
+    if(in.is_empty()){
+        in = current;
+    }
+    else{
+        current = in;
+        analogWrite(pin, current);
+    }
 }
 
 /**

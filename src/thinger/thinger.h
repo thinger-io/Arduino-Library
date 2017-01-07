@@ -154,6 +154,10 @@ namespace thinger{
             return send_message(message);
         }
 
+        bool call_endpoint(const char* endpoint_name, const char* resource_name){
+            return call_endpoint(endpoint_name, resources_[resource_name]);
+        }
+
         /**
          * Stream the given resource. This resource should be previously requested by an external process.
          * Otherwise, the resource will not be streamed as nothing will be listening for it.

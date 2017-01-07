@@ -26,7 +26,7 @@
 
 #include "ThingerClient.h"
 
-template <class Client = WiFiClient>
+template <class Client>
 class ThingerWifiClient : public ThingerClient {
 
 public:
@@ -41,7 +41,7 @@ public:
 protected:
 
     virtual bool network_connected(){
-        return WiFi.status() == WL_CONNECTED && !(WiFi.localIP() == INADDR_NONE);
+        return WiFi.status() == WL_CONNECTED && WiFi.localIP() != INADDR_NONE;
     }
 
     virtual bool connect_network(){
@@ -81,6 +81,6 @@ protected:
     const char* wifi_password_;
 };
 
-#define ThingerWifi ThingerWifiClient<>
+#define ThingerWifi ThingerWifiClient<WiFiClient>
 
 #endif

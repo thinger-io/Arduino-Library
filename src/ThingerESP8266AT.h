@@ -21,42 +21,26 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#ifndef THINGER_ESP8266_H
-#define THINGER_ESP8266_H
+#ifndef THINGER_ESP8266_AT_H
+#define THINGER_ESP8266_AT_H
 
 #include "ThingerWifi.h"
 
-#ifndef _DISABLE_TLS_
-class ThingerESP8266 : public ThingerWifiClient<WiFiClientSecure>{
-#else
-class ThingerESP8266 : public ThingerWifiClient<WiFiClient>{
-#endif
+class ThingerESP8266AT : public ThingerWifiClient<WiFiEspClient>{
 
 public:
-    ThingerESP8266(const char* user, const char* device, const char* device_credential) :
+    ThingerESP8266AT(const char* user, const char* device, const char* device_credential) :
             ThingerWifiClient(user, device, device_credential)
     {}
 
-    ~ThingerESP8266(){
+    ~ThingerESP8266AT(){
 
     }
 
 #ifndef _DISABLE_TLS_
 protected:
     virtual bool connect_socket(){
-        if(client_.connect(THINGER_SERVER, THINGER_SSL_PORT)){
-            if(client_.verify(THINGER_TLS_FINGERPRINT, THINGER_TLS_HOST)){
-#ifdef _DEBUG_
-                THINGER_DEBUG("_SOCKET", "SSL/TLS Host Verification Succeed!");
-#endif
-            }else{
-#ifdef _DEBUG_
-                THINGER_DEBUG("_SOCKET", "SSL/TLS Host Verification Error!");
-#endif
-            }
-            return true;
-        }
-        return false;
+        return client_.connectSSL(THINGER_SERVER, THINGER_SSL_PORT);
     }
 
     virtual bool secure_connection(){
