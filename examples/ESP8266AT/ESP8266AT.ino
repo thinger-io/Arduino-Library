@@ -16,6 +16,13 @@ ThingerESP8266AT thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
 void setup() {
   pinMode(ARDUINO_LED, OUTPUT);
 
+  // init ESP8266 in the connected serial port
+  WiFi.init(&Serial);
+  if(WiFi.status() == WL_NO_SHIELD){
+      // don't continue
+      while (true);
+  }
+
   thing.add_wifi(SSID, SSID_PASSWORD);
 
   // digital pin control example (i.e. turning on/off a light, a relay, configuring a parameter, etc)

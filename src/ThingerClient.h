@@ -45,7 +45,7 @@ memory_allocator& protoson::pool = alloc;
 #endif
 
 #ifndef THINGER_TLS_FINGERPRINT
-    #define THINGER_TLS_FINGERPRINT "50 1E ED 5D F3 E1 94 EC 2D 43 1E 22 4E 1D 5E 8B EB 66 8D EA"
+    #define THINGER_TLS_FINGERPRINT "C3 90 0E 8B CB 2D 7A 32 1B 55 5C 00 FA 7B 39 5E 53 BC D2 8F"
 #endif
 
 #ifndef THINGER_TLS_HOST
