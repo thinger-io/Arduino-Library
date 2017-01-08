@@ -22,11 +22,14 @@ ThingerESP8266AT thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
 void setup() {
   pinMode(ARDUINO_LED, OUTPUT);
 
-  // initialize serial for ESP8266
+  /* Notice: initialize serial for ESP8266 (it must be at 9600 if using SoftwareSerial)
+   * You can change the baudrate of ESP8266 sending the command AT+UART_DEF=9600,8,1,0,0\r\n
+   * If your device supports a HW Serial1, you can use 115200.
+   */
   Serial1.begin(9600);
 
   // init ESP8266 in the additional serial port
-  WiFi.init(&Serial);
+  WiFi.init(&Serial1);
   if(WiFi.status() == WL_NO_SHIELD){
       // don't continue
       while (true);
