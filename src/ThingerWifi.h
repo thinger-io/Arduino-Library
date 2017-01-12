@@ -41,7 +41,7 @@ public:
 protected:
 
     virtual bool network_connected(){
-        return WiFi.status() == WL_CONNECTED && WiFi.localIP() != INADDR_NONE;
+        return (WiFi.status() == WL_CONNECTED) && !(WiFi.localIP() == INADDR_NONE);
     }
 
     virtual bool connect_network(){
