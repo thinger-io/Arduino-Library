@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2016 THINK BIG LABS SL
+// Copyright (c) 2017 THINK BIG LABS S.L.
 // Author: alvarolb@gmail.com (Alvaro Luis Bustamante)
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -31,28 +31,36 @@ namespace thinger{
 
     class thinger_decoder : public protoson::pson_decoder{
     public:
-        void decode(thinger_message&  message, size_t size){
+        bool decode(thinger_message&  message, size_t size){
             size_t start_read = bytes_read();
             while(size-(bytes_read()-start_read)>0) {
                 protoson::pb_wire_type wire_type;
                 uint32_t field_number;
-                pb_decode_tag(wire_type, field_number);
+                if(!pb_decode_tag(wire_type, field_number)) return false;
                 switch (wire_type) {
                     case protoson::length_delimited:{
-                        uint32_t size = pb_decode_varint32();
-                        pb_skip(size);
+                        uint32_t size = 0;
+                        if(!pb_decode_varint32(size) || !pb_skip(size)) return false;
                     }
                         break;
                     case protoson::varint: {
                         switch (field_number) {
                             case thinger_message::SIGNAL_FLAG:
-                                message.set_signal_flag((thinger_message::signal_flag)pb_decode_varint32());
+                            {
+                                uint32_t signal_flag = 0;
+                                if(!pb_decode_varint32(signal_flag)) return false;
+                                message.set_signal_flag((thinger_message::signal_flag)(signal_flag));
+                            }
                                 break;
                             case thinger_message::STREAM_ID:
-                                message.set_stream_id(pb_decode_varint32());
+                            {
+                                uint32_t stream_id = 0;
+                                if(!pb_decode_varint32(stream_id)) return false;
+                                message.set_stream_id(stream_id);
+                            }
                                 break;
                             default:
-                                pb_skip_varint();
+                                if(!pb_skip_varint()) return false;
                                 break;
                         }
                         break;
@@ -60,28 +68,29 @@ namespace thinger{
                     case protoson::pson_type:
                         switch(field_number){
                             case thinger_message::IDENTIFIER:
-                                protoson::pson_decoder::decode(message.get_identifier());
+                                if(!protoson::pson_decoder::decode(message.get_identifier())) return false;
                                 break;
                             case thinger_message::RESOURCE:
-                                protoson::pson_decoder::decode(message.get_resources());
+                                if(!protoson::pson_decoder::decode(message.get_resources())) return false;
                                 break;
                             case thinger_message::PAYLOAD:
-                                protoson::pson_decoder::decode(((protoson::pson&) message));
+                                if(!protoson::pson_decoder::decode(((protoson::pson&) message))) return false;
                                 break;
                             default:
                                 break;
                         }
                         break;
                     case protoson::fixed_32:
-                        pb_skip(4);
+                        if(!pb_skip(4)) return false;
                         break;
                     case protoson::fixed_64:
-                        pb_skip(8);
+                        if(!pb_skip(8)) return false;
                         break;
                     default:
                         break;
                 }
             }
+            return true;
         }
     };
 
@@ -92,9 +101,7 @@ namespace thinger{
 
     protected:
         virtual bool read(void* buffer, size_t size){
-            io_.read((char*)buffer, size);
-            protoson::pson_decoder::read(buffer, size);
-            return true;
+            return io_.read((char*)buffer, size) && protoson::pson_decoder::read(buffer, size);
         }
 
     private:
@@ -119,7 +126,6 @@ namespace thinger{
     private:
         uint8_t* buffer_;
         size_t size_;
-
     };
 
 }

@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2016 THINK BIG LABS SL
+// Copyright (c) 2017 THINK BIG LABS S.L.
 // Author: alvarolb@gmail.com (Alvaro Luis Bustamante)
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -28,6 +28,9 @@
 #include <string.h>
 #include <math.h>
 #include <stdlib.h>
+#ifndef ARDUINO
+#include <string>
+#endif
 
 namespace protoson {
 
@@ -246,6 +249,18 @@ namespace protoson {
                     field_type_ == svarint_field    ||
                     field_type_ == float_field      ||
                     field_type_ == double_field     ||
+                    field_type_ == zero_field       ||
+                    field_type_ == one_field;
+        }
+
+        bool is_float() const{
+            return  field_type_ == float_field      ||
+                    field_type_ == double_field;
+        }
+
+        bool is_integer() const{
+            return  field_type_ == varint_field     ||
+                    field_type_ == svarint_field    ||
                     field_type_ == zero_field       ||
                     field_type_ == one_field;
         }
@@ -524,9 +539,7 @@ namespace protoson {
         operator String(){
             return (const char*)(*this);
         }
-#endif
-
-#if defined(_LIBCPP_STRING)
+#else
         void operator=(const std::string& str) {
             (*this) = str.c_str();
         }
@@ -650,22 +663,14 @@ namespace protoson {
 
         bool pb_decode_tag(pb_wire_type& wire_type, uint32_t& field_number)
         {
-            uint32_t temp = pb_decode_varint32();
+            uint32_t temp=0;
+            if(!pb_decode_varint32(temp)) return false;
             wire_type = (pb_wire_type)(temp & 0x07);
             field_number = temp >> 3;
             return true;
         }
 
-        uint32_t pb_decode_varint32()
-        {
-            uint32_t varint = 0;
-            if(try_pb_decode_varint32(varint)){
-                return varint;
-            }
-            return 0;
-        }
-
-        bool try_pb_decode_varint32(uint32_t& varint){
+        bool pb_decode_varint32(uint32_t& varint){
             varint = 0;
             uint8_t byte;
             uint8_t bit_pos = 0;
@@ -679,36 +684,36 @@ namespace protoson {
             return true;
         }
 
-        uint64_t pb_decode_varint64()
+        bool pb_decode_varint64(uint64_t& varint)
         {
-            uint64_t varint = 0;
+            varint = 0;
             uint8_t byte;
             uint8_t bit_pos = 0;
             do{
                 if(!read(&byte, 1) || bit_pos>=64){
-                    return varint;
+                    return false;
                 }
                 varint |= (uint32_t)(byte&0x7F) << bit_pos;
                 bit_pos += 7;
             }while(byte>=0x80);
-            return varint;
+            return true;
         }
 
         bool pb_skip(size_t size){
             uint8_t byte;
             bool success = true;
-            for(size_t i=0; i<size; i++){
-                success &= read(&byte, 1);
+            for(size_t i=0; i<size && success; i++){
+                success = read(&byte, 1);
             }
             return success;
         }
 
         bool pb_skip_varint(){
             uint8_t byte;
-            bool success = true;
+            bool success;
             do{
-                success &= read(&byte, 1);
-            }while(byte>0x80);
+                success = read(&byte, 1);
+            }while(byte>0x80 && success);
             return success;
         }
 
@@ -724,7 +729,7 @@ namespace protoson {
             uint8_t byte=0;
             uint8_t bytes_read=0;
             do{
-                if(!read(&byte, 1)) return false;
+                if(bytes_read==10 || !read(&byte, 1)) return false;
                 temp[bytes_read] = byte;
                 bytes_read++;
             }while(byte>=0x80);
@@ -734,69 +739,82 @@ namespace protoson {
 
     public:
 
-        void decode(pson_object & object, size_t size){
+        bool decode(pson_object & object, size_t size){
             size_t start_read = bytes_read();
             while(size-(bytes_read()-start_read)>0){
-                decode(object.create_item());
+                if(!decode(object.create_item())){
+                    return false;
+                }
             }
+            return true;
         }
 
-        void decode(pson_array & array, size_t size){
+        bool decode(pson_array & array, size_t size){
             size_t start_read = bytes_read();
             while(size-(bytes_read()-start_read)>0){
-                decode(array.create_item());
+                if(!decode(array.create_item())){
+                    return false;
+                }
             }
+            return true;
         }
 
-        void decode(pson_pair & pair){
-            uint32_t name_size = pb_decode_varint32();
-            pb_read_string(pair.allocate_name(name_size+1), name_size);
-            decode(pair.value());
+        bool decode(pson_pair & pair){
+            uint32_t name_size;
+            if(pb_decode_varint32(name_size)){
+                return pb_read_string(pair.allocate_name(name_size+1), name_size) && decode(pair.value());
+            }
+            return false;
         }
 
-        void decode(pson& value) {
+        bool decode(pson& value) {
             uint32_t field_number;
             pb_wire_type wire_type;
-            pb_decode_tag(wire_type, field_number);
+            if(!pb_decode_tag(wire_type, field_number)) return false;
             value.set_type((pson::field_type)field_number);
             if(wire_type==length_delimited){
-                uint32_t size = pb_decode_varint32();
+                uint32_t size = 0;
+                if(!pb_decode_varint32(size)) return false;
                 switch(field_number){
                     case pson::string_field:
-                        pb_read_string((char*)value.allocate(size + 1), size);
-                        break;
+                        return pb_read_string((char*)value.allocate(size + 1), size);
                     case pson::bytes_field: {
                         uint8_t varint_size = value.get_varint_size(size);
-                        read((char*)value.allocate(size + varint_size) + varint_size, size);
-                        value.pb_encode_varint(size);
+                        if(read((char*)value.allocate(size + varint_size) + varint_size, size)){
+                            value.pb_encode_varint(size);
+                            return true;
+                        }
+                        return false;
                     }
-                        break;
                     case pson::object_field:
                         value.set_value(new (pool) pson_object);
-                        decode(*(pson_object *)value.get_value(), size);
-                        break;
+                        return decode(*(pson_object *)value.get_value(), size);
                     case pson::array_field:
                         value.set_value(new (pool) pson_array);
-                        decode(*(pson_array *)value.get_value(), size);
-                        break;
+                        return decode(*(pson_array *)value.get_value(), size);
                     default:
-                        pb_skip(size);
-                        break;
+                        return false;
                 }
             }else {
                 switch (field_number) {
                     case pson::svarint_field:
                     case pson::varint_field:
-                        pb_read_varint(value);
-                        break;
+                        return pb_read_varint(value);
                     case pson::float_field:
-                        read(value.allocate(4), 4);
-                        break;
+                        return read(value.allocate(4), 4);
                     case pson::double_field:
-                        read(value.allocate(8), 8);
-                        break;
+                        return read(value.allocate(8), 8);
+                    case pson::null_field:
+                    case pson::true_field:
+                    case pson::false_field:
+                    case pson::zero_field:
+                    case pson::one_field:
+                    case pson::empty_string:
+                    case pson::empty_bytes:
+                    case pson::empty:
+                        return true;
                     default:
-                        break;
+                        return false;
                 }
             }
         }
@@ -811,8 +829,9 @@ namespace protoson {
     protected:
         size_t written_;
 
-        virtual void write(const void* buffer, size_t size){
+        virtual bool write(const void* buffer, size_t size){
             written_+=size;
+            return true;
         }
 
     public:
