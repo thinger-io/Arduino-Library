@@ -9,6 +9,7 @@ It supports multiple network interfaces like Ethernet, Wifi, and GSM. So you can
 * Arduino Yun
 * Arduino MKR1000 (With SSL/TLS)
 * Any ESP8266 variant like NodeMCU
+* ESP32
 * Texas Instruments CC3200
 * SeeedStudio LinkIt ONE (Both GPRS and WiFi)
 

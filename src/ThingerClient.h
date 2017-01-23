@@ -342,6 +342,11 @@ bool inverted_digital_pin(protoson::pson& in, int pin, bool& current_state){
 }
 #endif
 
+/*
+ * TODO ESP32 library does not implement analogWrite yet
+ */
+
+#ifndef ESP32
 void analog_pin(protoson::pson& in, int pin){
     static int current = in;
     if(in.is_empty()){
@@ -352,6 +357,7 @@ void analog_pin(protoson::pson& in, int pin){
         analogWrite(pin, current);
     }
 }
+#endif
 
 /**
  * AVR and ESP8266 supports reading the PIN state event if they are of output type. So they
