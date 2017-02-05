@@ -38,9 +38,9 @@ public:
 
 protected:
     virtual bool read(void* buffer, size_t size){
-        file_.readBytes((char*)buffer, size);
-        protoson::pson_decoder::read(buffer, size);
-        return true;
+        size_t read = file_.readBytes((char*)buffer, size);
+        protoson::pson_decoder::read(buffer, read);
+        return read == size;
     }
 
 private:
@@ -54,9 +54,10 @@ public:
     }
 
 protected:
-    virtual void write(const void* buffer, size_t size){
-        file_.write((const uint8_t*)buffer, size);
-        protoson::pson_encoder::write(buffer, size);
+    virtual bool write(const void* buffer, size_t size){
+        size_t wrote = file_.write((const uint8_t*)buffer, size);
+        protoson::pson_encoder::write(buffer, wrote);
+        return wrote == size;
     }
 
 private:
