@@ -70,7 +70,6 @@ public:
             client_(client), username_(user), device_id_(device), device_password_(device_credential),
             temp_data_(NULL), out_size_(0)
     {
-
     }
 
     ~ThingerClient()
@@ -142,6 +141,7 @@ protected:
         thinger_state_listener(SOCKET_TIMEOUT);
         client_.stop();
         thinger_state_listener(SOCKET_DISCONNECTED);
+        thinger::thinger::disconnected();
     }
 
     virtual bool connect_network(){
@@ -169,6 +169,7 @@ protected:
         SOCKET_CONNECTION_ERROR,
         SOCKET_DISCONNECTED,
         SOCKET_TIMEOUT,
+        SOCKET_ERROR,
         THINGER_AUTHENTICATING,
         THINGER_AUTHENTICATED,
         THINGER_AUTH_FAILED
@@ -225,26 +226,22 @@ protected:
 
     bool handle_connection()
     {
-        bool network = network_connected();
+        // check if client is connected
+        bool client = client_.connected();
+        if(client) return true;
 
-        if(!network){
+        // client is not connected, so check underlying network
+        if(!network_connected()){
             thinger_state_listener(NETWORK_CONNECTING);
-            network = connect_network();
-            if(!network){
+            if(!connect_network()){
                 thinger_state_listener(NETWORK_CONNECT_ERROR);
                 return false;
             }
             thinger_state_listener(NETWORK_CONNECTED);
         }
 
-        bool client = client_.connected();
-        if(!client){
-            client = connect_client();
-            if(!client){
-                return false;
-            }
-        }
-        return network && client;
+        // network is connected, so connect the client
+        return connect_client();
     }
 
     bool connect_client(){
@@ -274,12 +271,13 @@ public:
 
     void handle(){
         if(handle_connection()){
+            size_t available = client_.available();
             #ifdef _DEBUG_
-            if(client_.available()>0){
-                THINGER_DEBUG_VALUE("THINGER", "Available bytes: ", client_.available());
+            if(available>0){
+                THINGER_DEBUG_VALUE("THINGER", "Available bytes: ", available);
             }
             #endif
-            thinger::thinger::handle(millis(), client_.available()>0);
+            thinger::thinger::handle(millis(), available>0);
         }else{
             delay(RECONNECTION_TIMEOUT); // get some delay for a connection retry
         }

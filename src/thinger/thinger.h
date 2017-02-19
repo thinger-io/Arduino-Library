@@ -181,7 +181,9 @@ namespace thinger{
             encoder.pb_encode_varint(MESSAGE);
             encoder.pb_encode_varint(sink.bytes_written());
             encoder.encode(message);
-            return write(NULL, 0, true);
+            bool result = write(NULL, 0, true);
+            if(!result) disconnected();
+            return result;
         }
 
         void handle(unsigned long current_time, bool bytes_available)
@@ -299,6 +301,7 @@ namespace thinger{
                 send_message(response);
             }
         }
+
     };
 }
 

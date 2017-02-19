@@ -31,6 +31,8 @@ class ThingerWifiClient : public ThingerClient {
 
 public:
     ThingerWifiClient(const char* user, const char* device, const char* device_credential) :
+            wifi_ssid_(NULL),
+            wifi_password_(NULL),
             ThingerClient(client_, user, device, device_credential)
     {}
 
@@ -45,9 +47,19 @@ protected:
     }
 
     virtual bool connect_network(){
+        if(wifi_ssid_==NULL){
+            THINGER_DEBUG("NETWORK", "Cannot connect to WiFi. SSID not set!");
+        }
+
         long wifi_timeout = millis();
         THINGER_DEBUG_VALUE("NETWORK", "Connecting to network ", wifi_ssid_);
-        WiFi.begin((char*)wifi_ssid_, (char*) wifi_password_);
+
+        if(wifi_password_!=NULL){
+            WiFi.begin((char*)wifi_ssid_, (char*) wifi_password_);
+        }else{
+            WiFi.begin((char*)wifi_ssid_);
+        }
+
         while( WiFi.status() != WL_CONNECTED) {
             if(millis() - wifi_timeout > 30000) return false;
             #ifdef ESP8266
@@ -69,7 +81,7 @@ protected:
 
 public:
 
-    void add_wifi(const char* ssid, const char* password)
+    void add_wifi(const char* ssid, const char* password=NULL)
     {
         wifi_ssid_ = ssid;
         wifi_password_ = password;

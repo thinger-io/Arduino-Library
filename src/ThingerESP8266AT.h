@@ -24,29 +24,48 @@
 #ifndef THINGER_ESP8266_AT_H
 #define THINGER_ESP8266_AT_H
 
-#include "ThingerWifi.h"
+#include "ThingerClient.h"
 
-class ThingerESP8266AT : public ThingerWifiClient<WiFiEspClient>{
+class ThingerESP8266AT : public ThingerClient{
 
 public:
-    ThingerESP8266AT(const char* user, const char* device, const char* device_credential) :
-            ThingerWifiClient(user, device, device_credential)
+    ThingerESP8266AT(const char* user, const char* device, const char* device_credential, Stream& serial) :
+            serial_(serial),
+            client_(serial_),
+            wifi_ssid_(NULL),
+            wifi_password_(NULL),
+            ThingerClient(client_, user, device, device_credential)
     {}
 
     ~ThingerESP8266AT(){
 
     }
 
-#ifndef _DISABLE_TLS_
 protected:
-    virtual bool connect_socket(){
-        return client_.connectSSL(THINGER_SERVER, THINGER_SSL_PORT);
+
+    virtual bool network_connected(){
+        return false;
     }
 
-    virtual bool secure_connection(){
-        return true;
+    virtual bool connect_network(){
+        return serial_.networkConnect(wifi_ssid_, wifi_password_);
     }
-#endif
+
+
+public:
+
+    void add_wifi(const char* ssid, const char* password=NULL)
+    {
+        wifi_ssid_ = ssid;
+        wifi_password_ = password;
+    }
+
+protected:
+    TinyGsm serial_;
+    TinyGsm::GsmClient client_;
+    const char* wifi_ssid_;
+    const char* wifi_password_;
+
 
 };
 
