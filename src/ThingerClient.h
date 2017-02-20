@@ -117,15 +117,20 @@ protected:
 
             size_t written = client_.write(temp_data_, out_size_);
             bool success = written == out_size_;
-            free(temp_data_);
-            temp_data_ = NULL;
-            out_size_ = 0;
 
-            #ifdef _DEBUG_
+#ifdef _DEBUG_
             Serial.print(F(" ["));
             Serial.print(success ? F("OK") : F("FAIL"));
             Serial.println(F("]"));
-            #endif
+            if(!success){
+                THINGER_DEBUG_VALUE("THINGER", "Expected:", out_size_);
+                THINGER_DEBUG_VALUE("THINGER", "Wrote:", written);
+            }
+#endif
+
+            free(temp_data_);
+            temp_data_ = NULL;
+            out_size_ = 0;
 
             //FIXME Without this small delay or activating the debug (which takes time), the CC3200 does not work well. Why?
             #ifdef __CC3200R1M1RGC__
