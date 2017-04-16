@@ -26,7 +26,7 @@
 
 #include "ThingerWifi.h"
 
-class ThingerWifi101 : public ThingerWifiClient<> {
+class ThingerWifi101 : public ThingerWifiClient<WiFiClient> {
 
 public:
     ThingerWifi101(const char* user, const char* device, const char* device_credential) :
