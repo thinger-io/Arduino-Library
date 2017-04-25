@@ -67,8 +67,10 @@ class ThingerClient : public thinger::thinger {
 
 public:
     ThingerClient(Client& client, const char* user, const char* device, const char* device_credential) :
-            client_(client), username_(user), device_id_(device), device_password_(device_credential),
-            temp_data_(NULL), out_size_(0)
+            client_(client), username_(user), device_id_(device), device_password_(device_credential)
+#ifndef THINGER_DISABLE_OUTPUT_BUFFER
+            ,out_buffer_(NULL), out_size_(0)
+#endif
     {
     }
 
@@ -102,45 +104,68 @@ protected:
         return total_read == size;
     }
 
-    // TODO Allow removing this Nagle's algorithm implementation if the underlying device already implements it
     virtual bool write(const char* buffer, size_t size, bool flush=false){
+#ifndef THINGER_DISABLE_OUTPUT_BUFFER
         if(size>0){
-            temp_data_ = (uint8_t*) realloc(temp_data_, out_size_ + size);
-            memcpy(&temp_data_[out_size_], buffer, size);
-            out_size_ += size;
-        }
-        if(flush && out_size_>0){
-            #ifdef _DEBUG_
-            Serial.print(F("[THINGER] Writing bytes: "));
-            Serial.print(out_size_);
-            #endif
-
-            size_t written = client_.write(temp_data_, out_size_);
-            bool success = written == out_size_;
-
-#ifdef _DEBUG_
-            Serial.print(F(" ["));
-            Serial.print(success ? F("OK") : F("FAIL"));
-            Serial.println(F("]"));
-            if(!success){
-                THINGER_DEBUG_VALUE("THINGER", "Expected:", out_size_);
-                THINGER_DEBUG_VALUE("THINGER", "Wrote:", written);
+            void* new_buffer = realloc(out_buffer_, out_size_ + size);
+            if(new_buffer!=NULL){
+                out_buffer_ = (uint8_t*) new_buffer;
+                memcpy(&out_buffer_[out_size_], buffer, size);
+                out_size_ += size;
+            }else{
+                THINGER_DEBUG("MEMORY", "Output Memory Buffer Exhausted!");
+                // Realloc problem! Not enough memory, flushing out buffer and writing directly from the incoming buffer
+                return flush_out_buffer() && client_write(buffer, size);
             }
+        }
+        if(flush){
+            return flush_out_buffer();
+        }
+        return true;
+#else
+        return client_write(buffer, size);
+#endif
+    }
+
+    bool client_write(const char* buffer, size_t size){
+#ifdef _DEBUG_
+        Serial.print(F("[THINGER] Writing bytes: "));
+            Serial.print(size);
 #endif
 
-            free(temp_data_);
-            temp_data_ = NULL;
+        size_t written = client_.write((uint8_t*) buffer, size);
+        bool success = written == size;
+
+#ifdef _DEBUG_
+        Serial.print(F(" ["));
+        Serial.print(success ? F("OK") : F("FAIL"));
+        Serial.println(F("]"));
+        if(!success){
+            THINGER_DEBUG_VALUE("THINGER", "Expected:", size);
+            THINGER_DEBUG_VALUE("THINGER", "Wrote:", written);
+        }
+#endif
+
+        //FIXME Without this small delay or activating the debug (which takes time), the CC3200 does not work well. Why?
+#ifdef __CC3200R1M1RGC__
+        delay(1);
+#endif
+
+        return success;
+    }
+
+#ifndef THINGER_DISABLE_OUTPUT_BUFFER
+    bool flush_out_buffer(){
+        if(out_buffer_!=NULL && out_size_>0){
+            bool success = client_write((const char*)out_buffer_, out_size_);
+            free(out_buffer_);
+            out_buffer_ = NULL;
             out_size_ = 0;
-
-            //FIXME Without this small delay or activating the debug (which takes time), the CC3200 does not work well. Why?
-            #ifdef __CC3200R1M1RGC__
-            delay(1);
-            #endif
-
             return success;
         }
         return true;
     }
+#endif
 
     virtual void disconnected(){
         thinger_state_listener(SOCKET_TIMEOUT);
@@ -288,14 +313,22 @@ public:
         }
     }
 
+    void set_credentials(const char* username, const char* device_id, const char* device_password){
+        username_ = username;
+        device_id_ = device_id;
+        device_password_ = device_password;
+    }
+
 private:
 
     Client& client_;
     const char* username_;
     const char* device_id_;
     const char* device_password_;
-    uint8_t * temp_data_;
+#ifndef THINGER_DISABLE_OUTPUT_BUFFER
+    uint8_t * out_buffer_;
     size_t out_size_;
+#endif
 };
 
 /**
