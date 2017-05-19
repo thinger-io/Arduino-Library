@@ -96,12 +96,12 @@ namespace thinger{
 
         ~thinger_message(){
             // deallocate identifier
-            destroy(identifier, protoson::pool);
+            protoson::pool.destroy(identifier);
             // deallocate resource
-            destroy(resource, protoson::pool);
+            protoson::pool.destroy(resource);
             // deallocate paylaod if was allocated here
             if(data_allocated){
-                destroy(data, protoson::pool);
+                protoson::pool.destroy(data);
             }
         }
 
@@ -152,24 +152,24 @@ namespace thinger{
 
         void set_identifier(const char* id){
             if(identifier==NULL){
-                identifier = new (protoson::pool) protoson::pson;
+                identifier = protoson::pool.allocate<protoson::pson>();
             }
             (*identifier) = id;
         }
 
         void clean_identifier(){
-            destroy(identifier, protoson::pool);
+            protoson::pool.destroy(identifier);
             identifier = NULL;
         }
 
         void clean_resource(){
-            destroy(resource, protoson::pool);
+            protoson::pool.destroy(resource);
             resource = NULL;
         }
 
         void clean_data(){
             if(data_allocated){
-                destroy(data, protoson::pool);
+                protoson::pool.destroy(data);
             }
             data = NULL;
         }
@@ -182,7 +182,7 @@ namespace thinger{
 
         operator protoson::pson&(){
             if(data==NULL){
-                data = new (protoson::pool) protoson::pson;
+                data = protoson::pool.allocate<protoson::pson>();
                 data_allocated = true;
             }
             return *data;
@@ -194,14 +194,14 @@ namespace thinger{
 
         protoson::pson& get_resources(){
             if(resource==NULL){
-                resource = new (protoson::pool) protoson::pson;
+                resource = protoson::pool.allocate<protoson::pson>();
             }
             return *resource;
         }
 
         protoson::pson& get_identifier(){
             if(identifier==NULL){
-                identifier = new (protoson::pool) protoson::pson;
+                identifier = protoson::pool.allocate<protoson::pson>();
             }
             return *identifier;
         }

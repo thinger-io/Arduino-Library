@@ -1,4 +1,3 @@
-#include <SPI.h>
 #include <WiFi.h>
 #include <ThingerWifi.h>
 

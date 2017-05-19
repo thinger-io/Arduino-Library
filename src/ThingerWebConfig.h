@@ -24,11 +24,22 @@
 #ifndef THINGER_WEB_CONFIG_H
 #define THINGER_WEB_CONFIG_H
 
+#include <FS.h>
+#include <ESP8266WiFi.h>
+#include <DNSServer.h>
+#include <ESP8266WebServer.h>
+#include <WiFiManager.h>
 #include "ThingerClient.h"
 
 #define CONFIG_FILE "/config.pson"
-#define DEVICE_SSID "Thinger-Device"
-#define DEVICE_PSWD "thinger.io"
+
+#ifndef THINGER_DEVICE_SSID
+    #define THINGER_DEVICE_SSID "Thinger-Device"
+#endif
+
+#ifndef THINGER_DEVICE_SSID_PSWD
+    #define THINGER_DEVICE_SSID_PSWD "thinger.io"
+#endif
 
 class pson_spiffs_decoder : public protoson::pson_decoder{
 public:
@@ -79,9 +90,10 @@ public:
 
     }
 
+
+
     void clean_credentials(){
         THINGER_DEBUG("_CONFIG", "Cleaning credentials...");
-
         // clean Thinger.io credentials from file system
         if(SPIFFS.begin()) {
             THINGER_DEBUG("_CONFIG", "FS Mounted!");
@@ -108,7 +120,7 @@ protected:
     virtual bool connect_network(){
         bool thingerCredentials = false;
 
-        // read current config from file syste
+        // read current thinger.io credentials from file system
         THINGER_DEBUG("_CONFIG", "Mounting FS...");
         if (SPIFFS.begin()) {
             THINGER_DEBUG("_CONFIG", "FS Mounted!");
@@ -143,51 +155,68 @@ protected:
             THINGER_DEBUG("_CONFIG", "Failed to Mount FS!");
         }
 
-        // initialize wifi manager
-        WiFiManager wifiManager;
-        wifiManager.setDebugOutput(false);
-
-        // define additional wifi parameters
-        WiFiManagerParameter user_parameter("user", "User Id", user, 40);
-        WiFiManagerParameter device_parameter("device", "Device Id", device, 40);
-        WiFiManagerParameter credential_parameter("credential", "Device Credential", device_credential, 40);
-        wifiManager.addParameter(&user_parameter);
-        wifiManager.addParameter(&device_parameter);
-        wifiManager.addParameter(&credential_parameter);
-
-        THINGER_DEBUG("_CONFIG", "Starting Webconfig...");
-        bool wifiConnected = thingerCredentials ?
-                           wifiManager.autoConnect(DEVICE_SSID, DEVICE_PSWD) :
-                           wifiManager.startConfigPortal(DEVICE_SSID, DEVICE_PSWD);
-
-        if (!wifiConnected) {
-            THINGER_DEBUG("NETWORK", "Failed to Connect! Resetting...");
-            delay(3000);
-            ESP.reset();
-            return false;
-        }
-
-        //read updated parameters
-        strcpy(user, user_parameter.getValue());
-        strcpy(device, device_parameter.getValue());
-        strcpy(device_credential, credential_parameter.getValue());
-
-        THINGER_DEBUG("_CONFIG", "Updating Device Info...");
-        if (SPIFFS.begin()) {
-            File configFile = SPIFFS.open(CONFIG_FILE, "w");
-            if (configFile) {
-                pson config;
-                config["user"] = (const char *) user;
-                config["device"] = (const char *) device;
-                config["credential"] = (const char *) device_credential;
-                pson_spiffs_encoder encoder(configFile);
-                encoder.encode(config);
-                configFile.close();
-                THINGER_DEBUG("_CONFIG", "Done!");
-            } else {
-                THINGER_DEBUG("_CONFIG", "Failed to open config file for writing!");
+        // if credentials and wifi already configured, try to connect to wifi
+        if(thingerCredentials && WiFi.SSID() && !WiFi.SSID().length()==0){
+            THINGER_DEBUG("_CONFIG", "Connecting using previous configuration...");
+            unsigned long wifi_timeout = millis();
+            THINGER_DEBUG_VALUE("NETWORK", "Connecting to network ", WiFi.SSID());
+            WiFi.begin();
+            while(WiFi.status() != WL_CONNECTED) {
+                if(millis() - wifi_timeout > 30000) return false;
+                yield();
             }
-            SPIFFS.end();
+        // don't have credentials or Wifi, initiate config portal
+        }else{
+            THINGER_DEBUG("_CONFIG", "Starting Webconfig...");
+
+            WiFiManager wifiManager;
+
+#ifdef _DEBUG_
+            wifiManager.setDebugOutput(true);
+#else
+            wifiManager.setDebugOutput(false);
+#endif
+
+            // define additional wifi parameters
+            WiFiManagerParameter user_parameter("user", "User Id", user, 40);
+            WiFiManagerParameter device_parameter("device", "Device Id", device, 40);
+            WiFiManagerParameter credential_parameter("credential", "Device Credential", device_credential, 40);
+            wifiManager.addParameter(&user_parameter);
+            wifiManager.addParameter(&device_parameter);
+            wifiManager.addParameter(&credential_parameter);
+
+            bool wifiConnected = wifiManager.startConfigPortal(THINGER_DEVICE_SSID, THINGER_DEVICE_SSID_PSWD);
+
+            if (!wifiConnected) {
+                WiFi.disconnect();
+                THINGER_DEBUG("NETWORK", "Configuration Failed! Resetting...");
+                delay(3000);
+                ESP.reset();
+                return false;
+            }
+
+            //read updated parameters
+            strcpy(user, user_parameter.getValue());
+            strcpy(device, device_parameter.getValue());
+            strcpy(device_credential, credential_parameter.getValue());
+
+            THINGER_DEBUG("_CONFIG", "Updating Device Info...");
+            if (SPIFFS.begin()) {
+                File configFile = SPIFFS.open(CONFIG_FILE, "w");
+                if (configFile) {
+                    pson config;
+                    config["user"] = (const char *) user;
+                    config["device"] = (const char *) device;
+                    config["credential"] = (const char *) device_credential;
+                    pson_spiffs_encoder encoder(configFile);
+                    encoder.encode(config);
+                    configFile.close();
+                    THINGER_DEBUG("_CONFIG", "Done!");
+                } else {
+                    THINGER_DEBUG("_CONFIG", "Failed to open config file for writing!");
+                }
+                SPIFFS.end();
+            }
         }
 
         return true;

@@ -1,9 +1,4 @@
-#include <FS.h>
-#include <ESP8266WiFi.h>
-#include <DNSServer.h>
-#include <ESP8266WebServer.h>
-// Can be installed from Library Manager or https://github.com/tzapu/WiFiManager
-#include <WiFiManager.h>
+// Requires WifiManager from Library Manager or https://github.com/tzapu/WiFiManager
 #include <ThingerWebConfig.h>
 
 ThingerWebConfig thing;

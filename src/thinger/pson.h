@@ -28,16 +28,50 @@
 #include <string.h>
 #include <math.h>
 #include <stdlib.h>
+
 #ifndef ARDUINO
 #include <string>
 #endif
+
+#ifndef UINT32_MAX
+#define UINT32_MAX  4294967295U
+#endif
+
+/*
+ * Dummy placement new operator to support old Arduino compilers where this operator is not defined
+ * (and cannot be used from inside a class), and also to not overwrite global operator from modern
+ * toolchains like Espressif SDKs
+ */
+inline void * operator new(size_t sz, void * here, void* dummy) { return here; }
 
 namespace protoson {
 
     class memory_allocator{
     public:
+
+        // allocate
         virtual void *allocate(size_t size) = 0;
         virtual void deallocate(void *) = 0;
+
+        template <class T>
+        T* allocate(){
+            /*
+             * placement new has UB if memory is NULL, so check there is memory
+             * before trying to call the operator
+             */
+            if(void * memory = allocate(sizeof(T))){
+                return new (memory, NULL) T();
+            }
+            return NULL;
+        }
+
+        template <class T>
+        void destroy(T* p){
+            if(p){
+                p->~T();
+                deallocate(p);
+            }
+        }
     };
 
     template<size_t buffer_size>
@@ -50,6 +84,9 @@ namespace protoson {
         }
 
         virtual void *allocate(size_t size) {
+            if(size>buffer_size){
+                return NULL;
+            }
             if (index_ + size > buffer_size) {
                 index_ = 0;
             }
@@ -58,9 +95,7 @@ namespace protoson {
             return position;
         }
 
-        virtual void deallocate(void *) {
-
-        }
+        virtual void deallocate(void *) {}
     };
 
     class dynamic_memory_allocator : public memory_allocator{
@@ -77,25 +112,6 @@ namespace protoson {
     extern memory_allocator& pool;
 }
 
-inline void* operator new(size_t sz, protoson::memory_allocator& a)
-{
-    return a.allocate(sz);
-}
-
-inline void operator delete(void* p, protoson::memory_allocator& a)
-{
-    a.deallocate(p);
-}
-
-template<class T>
-void destroy(T* p, protoson::memory_allocator& a)
-{
-    if (p) {
-        p->~T();
-        a.deallocate(p);
-    }
-}
-
 namespace protoson {
 
     enum pb_wire_type{
@@ -109,50 +125,61 @@ namespace protoson {
     template<class T>
     class pson_container {
 
-        struct list_item{
+        class list_item{
+        public:
+            list_item() : next_(NULL), previous_(NULL) {}
+            ~list_item(){}
+
             T item_;
             list_item* next_;
+            list_item* previous_;
         };
 
     public:
 
         class iterator{
         public:
-            iterator(list_item *current) : current(current) {
+            iterator(list_item *item) : current_(item) {
             }
 
         private:
-            list_item * current;
+            list_item * current_;
 
         public:
+
             bool next(){
-                if(current==NULL) return false;
-                current = current->next_;
+                if(current_==NULL) return false;
+                current_ = current_->next_;
                 return true;
             }
 
             bool has_next(){
-                return current!=NULL && current->next_!=NULL;
+                return current_!=NULL && current_->next_!=NULL;
             }
 
             bool valid(){
-                return current!=NULL;
+                return current_!=NULL;
             }
 
             T& item(){
-                return current->item_;
+                return current_->item_;
             }
         };
 
     private:
         list_item* item_;
+        list_item* last_;
 
     public:
         iterator begin() const{
             return iterator(item_);
         }
 
-        pson_container() : item_(NULL) {
+        iterator end() const{
+            return iterator(last_);
+        }
+
+        pson_container() : item_(NULL), last_(NULL) {
         }
 
         ~pson_container(){
@@ -183,26 +210,24 @@ namespace protoson {
         }
 
         void clear(){
-            list_item* current = item_;
-            while(current!=NULL){
-                list_item* next = current->next_;
-                destroy(current, pool);
-                current = next;
+            while(last_!=NULL){
+                list_item* previous = last_->previous_;
+                pool.destroy(last_);
+                last_ = previous;
             }
-            item_ = NULL;
         }
 
-        T& create_item(){
-            list_item* new_list_item = new(pool) list_item();
+        T* create_item(){
+            list_item* new_list_item = pool.allocate<list_item>();
+            if(new_list_item==NULL) return NULL;
             if(item_==NULL){
                 item_ = new_list_item;
+            }else{
+                last_->next_ = new_list_item;
+                new_list_item->previous_ = last_;
             }
-            else{
-                list_item * last = item_;
-                while(last->next_!=NULL) last = last->next_;
-                last->next_ = new_list_item;
-            }
-            return new_list_item->item_;
+            last_ = new_list_item;
+            return &(new_list_item->item_);
         }
     };
 
@@ -227,7 +252,7 @@ namespace protoson {
             empty_bytes     = 12,
             object_field    = 13,
             array_field     = 14,
-            empty           = 15,
+            empty           = 15
             // a message tag is encoded in a 128-base varint [1-bit][3-bit wire type][4-bit field]
             // we have up to 4 bits (0-15) for encoding fields in the first byte
         };
@@ -291,9 +316,9 @@ namespace protoson {
 
         ~pson(){
             if(field_type_==object_field){
-                destroy((pson_object *) value_, pool);
+                pool.destroy((pson_object *) value_);
             }else if(field_type_==array_field) {
-                destroy((pson_array *) value_, pool);
+                pool.destroy((pson_array *) value_);
             }else{
                 pool.deallocate(value_);
             }
@@ -307,10 +332,11 @@ namespace protoson {
             }else if(value==1) {
                 field_type_ = one_field;
             }else{
-                field_type_ = value>0 ? varint_field : svarint_field;
                 uint64_t uint_value = value>0 ? value : -value;
-                value_ = pool.allocate(pson::get_varint_size(uint_value));
-                pb_encode_varint(uint_value);
+                if(allocate(pson::get_varint_size(uint_value))){
+                    pb_encode_varint(uint_value);
+                    field_type_ = value>0 ? varint_field : svarint_field;
+                }
             }
         }
 
@@ -343,19 +369,20 @@ namespace protoson {
             size_t str_size = strlen(str);
             if(str_size==0){
                 field_type_ = empty_string;
-            }else{
+            }else if(allocate(str_size+1)){
+                memcpy(value_, str, str_size+1);
                 field_type_ = string_field;
-                memcpy(allocate(str_size+1), str, str_size+1);
             }
         }
 
         void set_bytes(const void* bytes, size_t size) {
             if(size>0){
                 size_t varint_size = get_varint_size(size);
-                value_ = pool.allocate(varint_size+size);
-                pb_encode_varint(size);
-                memcpy(((uint8_t*)value_)+varint_size, bytes, size);
-                field_type_ = bytes_field;
+                if(allocate(varint_size+size)){
+                    pb_encode_varint(size);
+                    memcpy(((uint8_t*)value_)+varint_size, bytes, size);
+                    field_type_ = bytes_field;
+                }
             }else{
                 field_type_ = empty_bytes;
             }
@@ -374,9 +401,21 @@ namespace protoson {
             }
         }
 
-        void* allocate(size_t size){
-            value_ = pool.allocate(size);
-            return value_;
+        bool allocate(size_t size){
+            if(value_ == NULL){
+                value_ = pool.allocate(size);
+                return value_!=NULL;
+            }
+            return false;
+        }
+
+        template <class T>
+        bool allocate(){
+            if(value_ == NULL){
+                value_ = pool.allocate<T>();
+                return value_!=NULL;
+            }
+            return false;
         }
 
         operator pson_object &();
@@ -430,7 +469,7 @@ namespace protoson {
         }
 
         operator unsigned int(){
-            return get_value<int>();
+            return get_value<unsigned int>();
         }
 
         operator long(){
@@ -482,16 +521,13 @@ namespace protoson {
             return value_;
         }
 
-        void set_value(void* value){
-            value_ = value;
-        }
-
         field_type get_type() const{
             return field_type_;
         }
 
         void set_null(){
             field_type_ = null_field;
+            // TODO free existing value_ (if any)
         }
 
         void set_type(field_type type){
@@ -555,7 +591,9 @@ namespace protoson {
 
         template<class T>
         void set(T value) {
-            memcpy(allocate(sizeof(T)), &value, sizeof(T));
+            if(allocate(sizeof(T))){
+                memcpy(value_, &value, sizeof(T));
+            }
         }
     };
 
@@ -568,12 +606,14 @@ namespace protoson {
         }
 
         ~pson_pair(){
-            destroy(name_, pool);
+            pool.deallocate(name_);
         }
 
         void set_name(const char *name) {
             size_t name_size = strlen(name) + 1;
-            memcpy(allocate_name(name_size), name, name_size);
+            if(allocate_name(name_size)){
+                memcpy(name_, name, name_size);
+            }
         }
 
         char* allocate_name(size_t size){
@@ -592,15 +632,21 @@ namespace protoson {
 
     class pson_object : public pson_container<pson_pair> {
     public:
+
         pson &operator[](const char *name) {
             for(iterator it=begin(); it.valid(); it.next()){
-                if(strcmp(it.item().name(), name)==0){
+                const char* item_name = it.item().name();
+                if(item_name && strcmp(item_name, name)==0){
                     return it.item().value();
                 }
             }
-            pson_pair & pair = create_item();
-            pair.set_name(name);
-            return pair.value();
+            if(pson_pair* pair = create_item()){
+                pair->set_name(name);
+                return pair->value();
+            }else{
+                static pson value;
+                return value;
+            }
         };
     };
 
@@ -608,25 +654,38 @@ namespace protoson {
     public:
         template<class T>
         pson_array& add(T item_value){
-            create_item() = item_value;
+            pson* item = create_item();
+            if(item!=NULL){
+                *item = item_value;
+            }
             return *this;
         }
     };
 
     inline pson::operator pson_object &() {
         if (field_type_ != object_field) {
-            value_ = new(pool) pson_object;
-            field_type_ = object_field;
+            value_ = pool.allocate<pson_object>();
+            field_type_ = value_ != NULL ? object_field : empty;
         }
-        return *((pson_object *)value_);
+        if(value_!=NULL && field_type_ == object_field){
+            return *((pson_object *)value_);
+        }else{
+            static pson_object dummy;
+            return dummy;
+        }
     }
 
     inline pson::operator pson_array &() {
         if (field_type_ != array_field) {
-            value_ = new(pool) pson_array;
-            field_type_ = array_field;
+            value_ = pool.allocate<pson_array>();
+            field_type_ = value_!=NULL ? array_field : empty;
         }
-        return *((pson_array *)value_);
+        if(value_!=NULL && field_type_==array_field){
+            return *((pson_array *)value_);
+        }else{
+            static pson_array dummy;
+            return dummy;
+        }
     }
 
     inline pson &pson::operator[](const char *name) {
@@ -718,9 +777,11 @@ namespace protoson {
         }
 
         bool pb_read_string(char *str, size_t size){
-            bool success = read(str, size);
-            str[size]=0;
-            return success;
+            if(str && read(str, size)){
+                str[size]=0;
+                return true;
+            }
+            return false;
         }
 
         bool pb_read_varint(pson& value)
@@ -733,8 +794,12 @@ namespace protoson {
                 temp[bytes_read] = byte;
                 bytes_read++;
             }while(byte>=0x80);
-            memcpy(value.allocate(bytes_read), temp, bytes_read);
-            return true;
+            if(value.allocate(bytes_read)){
+                memcpy(value.get_value(), temp, bytes_read);
+                return true;
+            }else{
+                return false;
+            }
         }
 
     public:
@@ -742,7 +807,8 @@ namespace protoson {
         bool decode(pson_object & object, size_t size){
             size_t start_read = bytes_read();
             while(size-(bytes_read()-start_read)>0){
-                if(!decode(object.create_item())){
+                pson_pair* pair = object.create_item();
+                if(pair==NULL || !decode(*pair)){
                     return false;
                 }
             }
@@ -752,7 +818,8 @@ namespace protoson {
         bool decode(pson_array & array, size_t size){
             size_t start_read = bytes_read();
             while(size-(bytes_read()-start_read)>0){
-                if(!decode(array.create_item())){
+                pson* item = array.create_item();
+                if(item==NULL || !decode(*item)){
                     return false;
                 }
             }
@@ -762,7 +829,7 @@ namespace protoson {
         bool decode(pson_pair & pair){
             uint32_t name_size;
             if(pb_decode_varint32(name_size)){
-                return pb_read_string(pair.allocate_name(name_size+1), name_size) && decode(pair.value());
+                return name_size != UINT32_MAX && pair.allocate_name(name_size + 1) && pb_read_string(pair.name(), name_size) && decode(pair.value());
             }
             return false;
         }
@@ -777,21 +844,26 @@ namespace protoson {
                 if(!pb_decode_varint32(size)) return false;
                 switch(field_number){
                     case pson::string_field:
-                        return pb_read_string((char*)value.allocate(size + 1), size);
+                        return size!=UINT32_MAX && value.allocate(size+1) && pb_read_string((char*)value.get_value(), size);
                     case pson::bytes_field: {
                         uint8_t varint_size = value.get_varint_size(size);
-                        if(read((char*)value.allocate(size + varint_size) + varint_size, size)){
-                            value.pb_encode_varint(size);
-                            return true;
+                        if(size<=UINT32_MAX-varint_size && value.allocate(size + varint_size)){
+                            if(read((char*)value.get_value() + varint_size, size)){
+                                value.pb_encode_varint(size);
+                                return true;
+                            }
                         }
                         return false;
                     }
                     case pson::object_field:
-                        value.set_value(new (pool) pson_object);
-                        return decode(*(pson_object *)value.get_value(), size);
+                        if(value.allocate<pson_object>()){
+                            return decode(*(pson_object*) value.get_value(), size);
+                        }
+                        return false;
                     case pson::array_field:
-                        value.set_value(new (pool) pson_array);
-                        return decode(*(pson_array *)value.get_value(), size);
+                        if(value.allocate<pson_array>()){
+                            return decode(*(pson_array*) value.get_value(), size);
+                        }
                     default:
                         return false;
                 }
@@ -801,9 +873,9 @@ namespace protoson {
                     case pson::varint_field:
                         return pb_read_varint(value);
                     case pson::float_field:
-                        return read(value.allocate(4), 4);
+                        return value.allocate(4) && read(value.get_value(), 4);
                     case pson::double_field:
-                        return read(value.allocate(8), 8);
+                        return value.allocate(8) && read(value.get_value(), 8);
                     case pson::null_field:
                     case pson::true_field:
                     case pson::false_field:
@@ -887,9 +959,11 @@ namespace protoson {
         }
 
         void pb_encode_string(const char* str){
-            size_t string_size = strlen(str);
-            pb_encode_varint(string_size);
-            write(str, string_size);
+            if(str!=NULL){
+                size_t string_size = strlen(str);
+                pb_encode_varint(string_size);
+                write(str, string_size);
+            }
         }
 
         template<class T>
