@@ -1,3 +1,6 @@
+#define THINGER_USE_STATIC_MEMORY
+#define THINGER_STATIC_MEMORY_SIZE 512
+
 #include <WiFi.h>
 #include <ThingerWifi.h>
 
