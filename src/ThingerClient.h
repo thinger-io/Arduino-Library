@@ -305,6 +305,10 @@ protected:
 
 public:
 
+    void stop(){
+        disconnected();
+    }
+
     void handle(){
         if(handle_connection()){
             size_t available = client_.available();
@@ -324,6 +328,8 @@ public:
         device_id_ = device_id;
         device_password_ = device_password;
     }
+
+
 
 private:
 
