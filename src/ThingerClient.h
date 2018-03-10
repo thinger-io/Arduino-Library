@@ -28,13 +28,13 @@
 
 using namespace protoson;
 
-#ifndef THINGER_USE_STATIC_MEMORY
+#ifndef THINGER_USE_STATIC__MEMORY
     dynamic_memory_allocator alloc;
 #else
-    #ifndef THINGER_STATIC_MEMORY_SIZE
-        #define THINGER_STATIC_MEMORY_SIZE 512
+    #ifndef THINGER_STATIC__MEMORY_SIZE
+        #define THINGER_STATIC__MEMORY_SIZE 512
     #endif
-    circular_memory_allocator<THINGER_STATIC_MEMORY_SIZE> alloc;
+    circular_memory_allocator<THINGER_STATIC__MEMORY_SIZE> alloc;
 #endif
 memory_allocator& protoson::pool = alloc;
 
@@ -58,8 +58,19 @@ memory_allocator& protoson::pool = alloc;
     #define THINGER_TLS_HOST "thinger.io"
 #endif
 
-#define RECONNECTION_TIMEOUT 5000   // milliseconds
-#define DEFAULT_READ_TIMEOUT 30000  // milliseconds
+#ifndef RECONNECTION_TIMEOUT
+    #define RECONNECTION_TIMEOUT 5000   // milliseconds
+#endif
+
+#ifndef DEFAULT_READ_TIMEOUT
+    #define DEFAULT_READ_TIMEOUT 10000   // milliseconds
+#endif
+
+// set to 0 to increase buffer as required (less performing but memory saving!)
+#ifndef THINGER_OUTPUT_BUFFER_GROWING_SIZE
+    #define THINGER_OUTPUT_BUFFER_GROWING_SIZE 32
+#endif
+
 
 #ifdef _DEBUG_
     #define THINGER_DEBUG(type, text) Serial.print("["); Serial.print(F(type)); Serial.print("] "); Serial.println(F(text));
@@ -75,7 +86,7 @@ public:
     ThingerClient(Client& client, const char* user, const char* device, const char* device_credential) :
             client_(client), username_(user), device_id_(device), device_password_(device_credential)
 #ifndef THINGER_DISABLE_OUTPUT_BUFFER
-            ,out_buffer_(NULL), out_size_(0)
+            ,out_buffer_(NULL), out_size_(0), out_total_size_(0)
 #endif
     {
     }
@@ -89,7 +100,7 @@ protected:
 
     virtual bool read(char* buffer, size_t size)
     {
-        long start = millis();
+        unsigned long start = millis();
         size_t total_read = 0;
         //THINGER_DEBUG_VALUE("THINGER", "Reading bytes: ", size);
         while(total_read<size){
@@ -99,38 +110,91 @@ protected:
             #else
             int read = client_.readBytes((char*)buffer+total_read, size-total_read);
             #endif
+            //THINGER_DEBUG_VALUE("THINGER", "Read bytes: ", read);
             total_read += read;
-            if(read<=0 && (!client_.connected() || abs(millis()-start)>=DEFAULT_READ_TIMEOUT)){
+
+            /**
+             * Check reading timeout
+             */
+            if(read<=0 && abs(millis()-start)>=DEFAULT_READ_TIMEOUT){
                 #ifdef _DEBUG_
                 THINGER_DEBUG("_SOCKET", "Cannot read from socket!");
                 #endif
                 return false;
             }
+
+            /*
+             * Without a small delays between readings, the MKRGSM1400 seems to miss information, i.e, reading a byte
+             * after a byte. Maybe it is related to UART communication.
+             */
+#ifdef ARDUINO_SAMD_MKRGSM1400
+            delay(2);
+#endif
+
         }
         return total_read == size;
     }
 
     virtual bool write(const char* buffer, size_t size, bool flush=false){
-#ifndef THINGER_DISABLE_OUTPUT_BUFFER
+        #ifndef THINGER_DISABLE_OUTPUT_BUFFER
         if(size>0){
-            void* new_buffer = realloc(out_buffer_, out_size_ + size);
+            #ifdef _DEBUG_MEMORY_
+            THINGER_DEBUG_VALUE("_MEMORY", "Writing to Output Buffer: ", size)
+            #endif
+
+            #if THINGER_OUTPUT_BUFFER_GROWING_SIZE > 0
+            // check if it is necessary to increase output size
+            if(out_size_+size>out_total_size_){
+                // compute new buffer size
+                out_total_size_ += (size/THINGER_OUTPUT_BUFFER_GROWING_SIZE + (size % THINGER_OUTPUT_BUFFER_GROWING_SIZE != 0)) * THINGER_OUTPUT_BUFFER_GROWING_SIZE;
+                // reallocate buffer
+                void * new_buffer = realloc(out_buffer_, out_total_size_);
+                // increase current total size
+                if(new_buffer!=NULL){
+                    out_buffer_ = (uint8_t*) new_buffer;
+                    #ifdef _DEBUG_MEMORY_
+                    THINGER_DEBUG_VALUE("_MEMORY", "Increased buffer size to: ", out_total_size_)
+                    THINGER_DEBUG_VALUE("_MEMORY", "Realloc Address: ", (unsigned long) out_buffer_)
+                    #endif
+                }else{
+                    // Realloc problem! Not enough memory, flushing out buffer and writing directly from the incoming buffer
+                    #ifdef _DEBUG_MEMORY_
+                    THINGER_DEBUG("_MEMORY", "Output Memory Buffer Exhausted!");
+                    #endif
+                    return flush_out_buffer() && client_write(buffer, size);
+                }
+            }
+            // copy current input to buffer
+            memcpy(&out_buffer_[out_size_], buffer, size);
+            out_size_ += size;
+
+            #else
+            void * new_buffer = realloc(out_buffer_, out_size_ + size);
             if(new_buffer!=NULL){
+                #ifdef _DEBUG_MEMORY_
+                THINGER_DEBUG_VALUE("_MEMORY", "Increased buffer size to: ", out_size_ + size)
+                THINGER_DEBUG_VALUE("_MEMORY", "Realloc Address: ", (unsigned long) new_buffer)
+                #endif
                 out_buffer_ = (uint8_t*) new_buffer;
                 memcpy(&out_buffer_[out_size_], buffer, size);
                 out_size_ += size;
             }else{
-                THINGER_DEBUG("MEMORY", "Output Memory Buffer Exhausted!");
                 // Realloc problem! Not enough memory, flushing out buffer and writing directly from the incoming buffer
+                #ifdef _DEBUG_MEMORY_
+                THINGER_DEBUG("_MEMORY", "Output Memory Buffer Exhausted!");
+                #endif
                 return flush_out_buffer() && client_write(buffer, size);
             }
+            #endif
         }
         if(flush){
             return flush_out_buffer();
         }
         return true;
-#else
+
+        #else
         return client_write(buffer, size);
-#endif
+        #endif
     }
 
     bool client_write(const char* buffer, size_t size){
@@ -164,9 +228,16 @@ protected:
     bool flush_out_buffer(){
         if(out_buffer_!=NULL && out_size_>0){
             bool success = client_write((const char*)out_buffer_, out_size_);
+
+#ifdef _DEBUG_MEMORY_
+            THINGER_DEBUG_VALUE("_MEMORY", "Releasing memory size: ", out_total_size_)
+            THINGER_DEBUG_VALUE("_MEMORY", "Release Address: ", (unsigned long) out_buffer_)
+#endif
+
             free(out_buffer_);
             out_buffer_ = NULL;
             out_size_ = 0;
+            out_total_size_ = 0;
             return success;
         }
         return true;
@@ -329,8 +400,6 @@ public:
         device_password_ = device_password;
     }
 
-
-
 private:
 
     Client& client_;
@@ -340,6 +409,7 @@ private:
 #ifndef THINGER_DISABLE_OUTPUT_BUFFER
     uint8_t * out_buffer_;
     size_t out_size_;
+    size_t out_total_size_;
 #endif
 };
 
