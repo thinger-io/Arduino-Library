@@ -8,6 +8,7 @@ It supports multiple network interfaces like Ethernet, Wifi, and GSM. So you can
 * Arduino + ENC28J60
 * Arduino Yun
 * Arduino MKR1000 (With SSL/TLS)
+* Arduino GSM1400 (MKRGSM)
 * Arduino + GPRS Shield
 * Arduino + TinyGSM library for GPRS (SIM800, SIM900, AI-THINKER A6, A6C, A7, Neoway M590)
 * Arduino + ESP8266 as WiFi Modem (using TinyGSM library)
