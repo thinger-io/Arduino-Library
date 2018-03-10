@@ -209,6 +209,12 @@ namespace thinger{
             //return result;
         }
 
+        /**
+         * This method should be called periodically, indicating the current timestamp, and if there are bytes
+         * available in the connection
+         * @param current_time in milliseconds, i.e., unix epoch or millis from start.
+         * @param bytes_available true or false indicating if there is input data available for reading.
+         */
         void handle(unsigned long current_time, bool bytes_available)
         {
             // handle input
@@ -216,7 +222,7 @@ namespace thinger{
                 handle_input();
             }
 
-            // handle keep alive
+            // handle keep alive (send keep alive to server to prevent disconnection)
             if(current_time-last_keep_alive>KEEP_ALIVE_MILLIS){
                 if(keep_alive_response){
                     last_keep_alive = current_time;
@@ -241,17 +247,25 @@ namespace thinger{
             }
         }
 
+        /**
+         * Decode a message from the current connection. It should be called when there are bytes available for reading.
+         * @param message reference to the message that will be filled with the decoded information
+         * @return true or false if the message passed in reference was filled with a valid message.
+         */
         bool read_message(thinger_message& message){
             uint32_t type = 0;
             if(decoder.pb_decode_varint32(type)){
                 switch (type){
                     case MESSAGE: {
+                        // decode message size & message itself
                         uint32_t size = 0;
                         return decoder.pb_decode_varint32(size) &&
                                decoder.decode(message, size);
                     }
                     case KEEP_ALIVE: {
+                        // update our keep_alive flag (connection active)
                         keep_alive_response = true;
+                        // skip size bytes in keep alive (always 0)
                         decoder.pb_skip_varint();
                     }
                 }
@@ -259,9 +273,14 @@ namespace thinger{
             return false;
         }
 
+        /**
+         * Handle any connection input. This method should be called when there is information in the input buffer
+         * @return true or false if a message was decoded
+         */
         bool handle_input(){
             thinger_message message;
             if(read_message(message)){
+                // keep alive message is not decoded as a message
                 handle_request_received(message);
                 return true;
             }
@@ -270,41 +289,76 @@ namespace thinger{
 
     private:
 
+        /**
+         * Handle an incoming request from the server
+         * @param request the message sent by the server
+         */
         void handle_request_received(thinger_message& request)
         {
+            // create a response message to any incoming request
             thinger_message response(request);
+
+            // if there is no resource in the message, they are not asking for anything in our device
             if(!request.has_resource()){
                 response.set_signal_flag(thinger_message::REQUEST_ERROR);
             }
+
+            /*
+             * decode the requested resource. A resource is an array of string identifiers, as resources may be
+             * concatenated, i.e., temperature/degrees; tire1/pressure.
+             */
             else{
+                // pointer to the requested resource (not initialized by default)
                 thinger_resource * thing_resource = NULL;
+
                 for(pson_array::iterator it = request.resources().begin(); it.valid(); it.next()){
+
+                    // if the resource name is not a string.. stop!
                     if(!it.item().is_string()){
                         response.set_signal_flag(thinger_message::REQUEST_ERROR);
                         break;
                     }
+
+                    // get current resource, and check if there are more remaining resources
                     const char* resource = it.item();
+
+                    // there are more sub resources in the array
                     if(it.has_next()){
+
+                        // search the requested resource in the root, or just in the current resource (kept in thing_resource)
                         thing_resource = thing_resource == NULL ? resources_.find(resource) : thing_resource->find(resource);
+
+                        // the requested resource is not available in the device or the resource... stop!
                         if(thing_resource==NULL) {
                             response.set_signal_flag(thinger_message::REQUEST_ERROR);
                             break;
                         }
+
+                    // the current item is the latest resource name
                     }else{
+
+                        // check if resource name is the special word "api" to fill the current resource state
                         if(strcmp("api", resource)==0){
+                            // just fill the api over the device root
                             if(thing_resource==NULL){
                                 thinger_map<thinger_resource>::entry* current = resources_.begin();
                                 while(current!=NULL){
                                     current->value_.fill_api(response.get_data()[current->key_]);
                                     current = current->next_;
                                 }
+                            // fll the api over the specified resource
                             }else{
                                 thing_resource->fill_api_io(response.get_data());
                             }
+
+                        // just want to interact with the resource itself...
                         }else{
                             thing_resource = thing_resource == NULL ? resources_.find(resource) : thing_resource->find(resource);
+                            // the resource is not available.. stop!
                             if(thing_resource==NULL){
                                 response.set_signal_flag(thinger_message::REQUEST_ERROR);
+
+                            // the resource is available, so, handle its i/o.
                             }else{
                                 thing_resource->handle_request(request, response);
                                 // stream enabled over a resource input -> notify the current state
