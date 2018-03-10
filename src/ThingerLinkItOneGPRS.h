@@ -44,7 +44,7 @@ protected:
     }
 
     virtual bool connect_network(){
-        long gprs_timeout = millis();
+        unsigned long gprs_timeout = millis();
         THINGER_DEBUG("NETWORK", "Connecting to GPRS...");
         while(!attachGPRS())
         {

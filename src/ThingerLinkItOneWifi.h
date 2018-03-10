@@ -44,7 +44,7 @@ protected:
     }
 
     virtual bool connect_network(){
-        long wifi_timeout = millis();
+        unsigned long wifi_timeout = millis();
         THINGER_DEBUG_VALUE("NETWORK", "Connecting to network ", wifi_ssid_);
         LWiFi.begin();
         while(LWiFi.connect((char*)wifi_ssid_, LWiFiLoginInfo(LWIFI_WPA, wifi_password_))<=0) {
