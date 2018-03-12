@@ -40,30 +40,6 @@ public:
     ~ThingerESP8266(){
 
     }
-
-#ifndef _DISABLE_TLS_
-protected:
-    virtual bool connect_socket(){
-        if(client_.connect(THINGER_SERVER, THINGER_SSL_PORT)){
-            if(client_.verify(THINGER_TLS_FINGERPRINT, THINGER_TLS_HOST)){
-#ifdef _DEBUG_
-                THINGER_DEBUG("_SOCKET", "SSL/TLS Host Verification Succeed!");
-#endif
-            }else{
-#ifdef _DEBUG_
-                THINGER_DEBUG("_SOCKET", "SSL/TLS Host Verification Error!");
-#endif
-            }
-            return true;
-        }
-        return false;
-    }
-
-    virtual bool secure_connection(){
-        return true;
-    }
-#endif
-
 };
 
 #endif
