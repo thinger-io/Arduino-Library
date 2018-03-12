@@ -26,11 +26,6 @@
 
 #include "ThingerWifi.h"
 
-/*
- * TODO ESP32 library does not contain a WiFiClientSecure client yet, so disable TLS by default
- * https://github.com/espressif/arduino-esp32/issues/101
- */
-#define _DISABLE_TLS_
 #ifndef _DISABLE_TLS_
 class ThingerESP32 : public ThingerWifiClient<WiFiClientSecure>{
 #else
@@ -45,30 +40,6 @@ public:
     ~ThingerESP32(){
 
     }
-
-#ifndef _DISABLE_TLS_
-protected:
-    virtual bool connect_socket(){
-        if(client_.connect(THINGER_SERVER, THINGER_SSL_PORT)){
-            if(client_.verify(THINGER_TLS_FINGERPRINT, THINGER_TLS_HOST)){
-#ifdef _DEBUG_
-                THINGER_DEBUG("_SOCKET", "SSL/TLS Host Verification Succeed!");
-#endif
-            }else{
-#ifdef _DEBUG_
-                THINGER_DEBUG("_SOCKET", "SSL/TLS Host Verification Error!");
-#endif
-            }
-            return true;
-        }
-        return false;
-    }
-
-    virtual bool secure_connection(){
-        return true;
-    }
-#endif
-
 };
 
 #endif
