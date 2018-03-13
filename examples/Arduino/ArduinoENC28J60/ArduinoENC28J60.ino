@@ -13,10 +13,10 @@ void setup() {
   uint8_t mac[6] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05};
   Ethernet.begin(mac, IPAddress(192, 168, 1, 125));
 
-  pinMode(2, OUTPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
 
   // pin control example (i.e. turning on/off a light, a relay, etc)
-  thing["led"] << digitalPin(2);
+  thing["led"] << digitalPin(LED_BUILTIN);
 
   // resource output example (i.e. reading a sensor value)
   thing["millis"] >> outputValue(millis());
