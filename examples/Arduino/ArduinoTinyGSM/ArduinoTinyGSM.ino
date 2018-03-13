@@ -43,7 +43,7 @@ void setup() {
   thing.setAPN(APN_NAME, APN_USER, APN_PSWD);
 
   // set PIN (optional)
-  // thing.setPin(CARD_PIN);
+  // thing.setPIN(CARD_PIN);
 
   // resource input example (i.e, controlling a digitalPin);
   pinMode(13, OUTPUT);
