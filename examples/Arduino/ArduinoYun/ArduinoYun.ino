@@ -1,4 +1,4 @@
-#include <YunClient.h>
+#include <BridgeSSLClient.h>
 #include <ThingerYun.h>
 
 #define USERNAME "your_user_name"
