@@ -2,7 +2,7 @@
 // #define _DEBUG_
 
 // Can be installed from Library Manager or https://github.com/vshymanskyy/TinyGSM
-#include <TinyWiFiClientESP8266.h>
+#include <TinyGsmClientESP8266.h>
 #include <ThingerESP8266AT.h>
 
 #define USERNAME "you_username"
@@ -11,8 +11,6 @@
 
 #define SSID "your_wifi_ssid"
 #define SSID_PASSWORD "your_wifi_password"
-
-#define ARDUINO_LED 13
 
 // Emulate Serial1 on pins 10/11 if HW is not present (use interrupt pins for better performance)
 #ifndef HAVE_HWSERIAL1
@@ -35,8 +33,8 @@ void setup() {
   thing.add_wifi(SSID, SSID_PASSWORD);
 
   // digital pin control example (i.e. turning on/off a light, a relay, configuring a parameter, etc)
-  pinMode(ARDUINO_LED, OUTPUT);
-  thing["led"] << digitalPin(ARDUINO_LED);
+  pinMode(LED_BUILTIN, OUTPUT);
+  thing["led"] << digitalPin(LED_BUILTIN);
 
   // resource output example (i.e. reading a sensor value)
   thing["millis"] >> outputValue(millis());

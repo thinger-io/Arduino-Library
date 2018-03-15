@@ -44,13 +44,16 @@ public:
 protected:
 
     virtual bool network_connected(){
-        return false;
+        return serial_.isNetworkConnected();
     }
 
     virtual bool connect_network(){
         return serial_.networkConnect(wifi_ssid_, wifi_password_);
     }
 
+    virtual bool secure_connection(){
+        return false;
+    }
 
 public:
 
@@ -65,7 +68,6 @@ protected:
     TinyGsm::GsmClient client_;
     const char* wifi_ssid_;
     const char* wifi_password_;
-
 
 };
 
