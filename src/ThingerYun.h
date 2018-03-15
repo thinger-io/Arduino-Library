@@ -36,8 +36,12 @@ public:
     ~ThingerYun(){}
 
 private:
-    
-    YunClient client_;
+#ifndef _DISABLE_TLS_
+    BridgeSSLClient client_;
+#else
+    BridgeClient client_;
+#endif
+
 };
 
 #endif
