@@ -61,6 +61,10 @@ protected:
         return true;
     }
 
+    virtual bool secure_connection(){
+        return false;
+    }
+
 public:
 
     void add_wifi(const char* ssid, const char* password)

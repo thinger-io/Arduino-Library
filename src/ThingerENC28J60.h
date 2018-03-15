@@ -48,6 +48,10 @@ protected:
         return connected_;
     }
 
+    virtual bool secure_connection(){
+        return false;
+    }
+
 private:
     bool connected_;
     EthernetClient client_;

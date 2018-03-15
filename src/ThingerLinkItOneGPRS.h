@@ -56,6 +56,10 @@ protected:
         return connected_;
     }
 
+    virtual bool secure_connection(){
+        return false;
+    }
+
 public:
     void set_apn(const char* apn, const char* user=NULL, const char* password=NULL){
         apn_ = apn;

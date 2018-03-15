@@ -87,12 +87,6 @@ protected:
         return gsmConnected_ && gprsConnected_;
     }
 
-#ifndef _DISABLE_TLS_
-    virtual bool secure_connection(){
-        return true;
-    }
-#endif
-
 public:
 
     void set_apn(const char* apn, const char* apn_username="", const char* apn_password="")

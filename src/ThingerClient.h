@@ -260,11 +260,15 @@ protected:
     }
 
     virtual bool connect_socket(){
-        return client_.connect(THINGER_SERVER, THINGER_PORT);
+        return client_.connect(THINGER_SERVER, secure_connection() ? THINGER_SSL_PORT : THINGER_PORT);
     }
 
     virtual bool secure_connection(){
+#ifdef _DISABLE_TLS_
         return false;
+#else
+        return true;
+#endif
     }
 
     enum THINGER_STATE{

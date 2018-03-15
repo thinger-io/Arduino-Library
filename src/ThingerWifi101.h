@@ -42,9 +42,6 @@ protected:
     virtual bool connect_socket(){
         return client_.connectSSL(THINGER_SERVER, THINGER_SSL_PORT);
     }
-    virtual bool secure_connection(){
-        return true;
-    }
 #endif
 
 };

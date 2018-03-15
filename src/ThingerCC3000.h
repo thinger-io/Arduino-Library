@@ -90,6 +90,10 @@ protected:
         }
     }
 
+    virtual bool secure_connection(){
+        return false;
+    }
+
 public:
 
     void add_wifi(char* ssid, char* password)
