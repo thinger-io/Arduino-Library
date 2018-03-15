@@ -6,14 +6,14 @@ It supports multiple network interfaces like Ethernet, Wifi, and GSM. So you can
 * Arduino + Wifi
 * Arduino + Adafruit CC3000
 * Arduino + ENC28J60
-* Arduino Yun
+* Arduino Yun (With SSL/TLS)
 * Arduino MKR1000 (With SSL/TLS)
-* Arduino GSM1400 (MKRGSM)
+* Arduino GSM1400 (MKRGSM) (With SSL/TLS)
 * Arduino + GPRS Shield
-* Arduino + TinyGSM library for GPRS (SIM800, SIM900, AI-THINKER A6, A6C, A7, Neoway M590)
-* Arduino + ESP8266 as WiFi Modem (using TinyGSM library)
+* Arduino + TinyGSM library for GSM modems using GPRS (SIM800, SIM900, AI-THINKER A6, A6C, A7, Neoway M590)
+* Arduino + ESP8266 as WiFi Modem via AT commands (using TinyGSM library)
 * Any ESP8266 variant like NodeMCU (with SSL/TLS)
-* ESP32
+* Espressif ESP32 (With SSL/TLS)
 * Texas Instruments CC3200
 * SeeedStudio LinkIt ONE (Both GPRS and WiFi)
 
