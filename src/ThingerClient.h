@@ -404,6 +404,10 @@ public:
         device_password_ = device_password;
     }
 
+    Client& get_client(){
+        return client_;
+    }
+
 private:
 
     Client& client_;
