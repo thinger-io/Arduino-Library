@@ -51,13 +51,7 @@ public:
 protected:
 
     virtual bool network_connected(){
-        /**
-         * Assume that the network is not connected while checked, i.e., the socket is not connected,
-         * so it is forced a GPRS connection prior to trying a socket connection. It may be modified
-         * if the library supports a reliable way of checking both NETWORK and GPRS status:
-         * https://github.com/vshymanskyy/TinyGSM/issues/12
-         */
-        return false;
+        return modem_.isNetworkConnected() && modem_.isGprsConnected();
     }
 
     virtual bool connect_network(){
@@ -66,35 +60,42 @@ protected:
             return false;
         }
 
-        RegStatus regStatus = modem_.getRegistrationStatus();
-        THINGER_DEBUG_VALUE("NETWORK", "Network Status: ", regStatus)
+        if(!modem_.isNetworkConnected()){
+            THINGER_DEBUG("NETWORK", "Initializing Modem...")
+            if(!modem_.restart()){
+                THINGER_DEBUG("NETWORK", "Cannot init modem! Is it connected?")
+                return false;
+            }else{
+                if(pin_!=NULL){
+                    THINGER_DEBUG_VALUE("NETWORK", "Unlocking SIM... ", pin_)
+                    if(!modem_.simUnlock(pin_)){
+                        THINGER_DEBUG("NETWORK", "Cannot unlock SIM!")
+                        return false;
+                    }
+                }
 
-        if(regStatus==REG_UNKNOWN || regStatus==REG_UNREGISTERED){
-            THINGER_DEBUG("NETWORK", "Restarting Modem...")
-            modem_.restart();
-
-            if(pin_!=NULL){
-                THINGER_DEBUG("NETWORK", "Unlocking SIM...")
-                if(!modem_.simUnlock(pin_)){
-                    THINGER_DEBUG("NETWORK", "Cannot unlock SIM!")
+                THINGER_DEBUG("NETWORK", "Waiting for Network...")
+                if(!modem_.waitForNetwork(NETWORK_REGISTER_TIMEOUT)) {
+                    THINGER_DEBUG("NETWORK", "Cannot connect network!")
                     return false;
                 }
+                THINGER_DEBUG("NETWORK", "Network Connected!")
             }
+        }
 
-            THINGER_DEBUG("NETWORK", "Waiting for Network...")
-            if(!modem_.waitForNetwork(NETWORK_REGISTER_TIMEOUT)) {
-                THINGER_DEBUG("NETWORK", "Cannot connect network!")
+        if(!modem_.isGprsConnected()){
+            THINGER_DEBUG("NETWORK", "Connecting to APN...")
+            if (!modem_.gprsConnect(apn_, user_, password_)) {
+                THINGER_DEBUG("NETWORK", "Cannot connect to APN!")
                 return false;
             }
-            THINGER_DEBUG("NETWORK", "Network Connected!")
         }
 
-        THINGER_DEBUG("NETWORK", "Connecting to APN...")
-        // TODO this library does not support a timeout in the GPRS connection
-        if (!modem_.gprsConnect(apn_, user_, password_)) {
-            THINGER_DEBUG("NETWORK", "Cannot connect to APN!")
-            return false;
-        }
+        return true;
+    }
+
+    virtual bool secure_connection(){
+        return false;
     }
 
 public:

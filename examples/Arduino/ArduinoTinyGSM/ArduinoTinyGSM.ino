@@ -46,8 +46,8 @@ void setup() {
   // thing.setPIN(CARD_PIN);
 
   // resource input example (i.e, controlling a digitalPin);
-  pinMode(13, OUTPUT);
-  thing["led"] << digitalPin(13);
+  pinMode(LED_BUILTIN, OUTPUT);
+  thing["led"] << digitalPin(LED_BUILTIN);
 
   // resource output example (i.e. reading a sensor value)
   thing["millis"] >> outputValue(millis());
