@@ -24,6 +24,7 @@
 #ifndef THINGER_ESP32_H
 #define THINGER_ESP32_H
 
+#include <WiFiClientSecure.h>
 #include "ThingerWifi.h"
 
 #ifndef _DISABLE_TLS_

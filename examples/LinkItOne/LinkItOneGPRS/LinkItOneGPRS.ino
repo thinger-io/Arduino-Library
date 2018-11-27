@@ -1,5 +1,3 @@
-#include <LGPRS.h>
-#include <LGPRSClient.h>
 #include <ThingerLinkItOneGPRS.h>
 
 #define USERNAME "your_user_name"

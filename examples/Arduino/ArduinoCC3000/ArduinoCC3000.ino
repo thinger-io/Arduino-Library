@@ -1,6 +1,3 @@
-#include <Adafruit_CC3000.h>
-#include <SPI.h>
-#include <ccspi.h>
 #include <ThingerCC3000.h>
 
 #define USERNAME "your_user_name"

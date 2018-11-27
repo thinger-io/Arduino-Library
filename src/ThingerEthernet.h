@@ -24,6 +24,8 @@
 #ifndef THINGER_ETHERNET_H
 #define THINGER_ETHERNET_H
 
+#include <Ethernet.h>
+
 #include "ThingerClient.h"
 
 class ThingerEthernet : public ThingerClient {

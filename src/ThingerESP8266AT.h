@@ -24,6 +24,9 @@
 #ifndef THINGER_ESP8266_AT_H
 #define THINGER_ESP8266_AT_H
 
+// TinyGSM can be installed from Library Manager or https://github.com/vshymanskyy/TinyGSM
+#define TINY_GSM_MODEM_ESP8266
+#include <TinyGsmClient.h>
 #include "ThingerClient.h"
 
 class ThingerESP8266AT : public ThingerClient{

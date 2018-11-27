@@ -1,4 +1,3 @@
-#include <ESP8266WiFi.h>
 #include <ThingerSmartConfig.h>
 
 #define USERNAME "your_user_name"

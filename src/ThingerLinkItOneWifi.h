@@ -24,6 +24,10 @@
 #ifndef THINGER_LINKITONE_H
 #define THINGER_LINKITONE_H
 
+#include <LTask.h>
+#include <LWiFi.h>
+#include <LWiFiClient.h>
+
 #include "ThingerClient.h"
 
 class ThingerLinkItOneWifi : public ThingerClient {

@@ -1,5 +1,3 @@
-#include <SPI.h>
-#include <Ethernet.h>
 #include <ThingerEthernet.h>
 
 #define USERNAME "your_username"

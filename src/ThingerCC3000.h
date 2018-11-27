@@ -24,6 +24,8 @@
 #ifndef THINGER_CC3000_H
 #define THINGER_CC3000_H
 
+#include <Adafruit_CC3000.h>
+
 #include "ThingerClient.h"
 
 // These are the interrupt and control pins

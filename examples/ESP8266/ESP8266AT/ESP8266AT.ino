@@ -1,10 +1,5 @@
 // Uncomment this for debug
 // #define _DEBUG_
-
-// TinyGSM can be installed from Library Manager or https://github.com/vshymanskyy/TinyGSM
-#define TINY_GSM_MODEM_ESP8266
-#include <TinyGsmClient.h>
-
 #include <ThingerESP8266AT.h>
 
 #define USERNAME "you_username"

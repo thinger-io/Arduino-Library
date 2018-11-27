@@ -24,6 +24,7 @@
 #ifndef THINGER_SMARTCONFIG_H
 #define THINGER_SMARTCONFIG_H
 
+#include <ESP8266WiFi.h>
 #include "ThingerClient.h"
 
 #define WIFI_CONNECTION_TIMEOUT_MS 15000

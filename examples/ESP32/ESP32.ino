@@ -1,4 +1,3 @@
-#include <WiFiClientSecure.h>
 #include <ThingerESP32.h>
 
 #define USERNAME "your_user_name"

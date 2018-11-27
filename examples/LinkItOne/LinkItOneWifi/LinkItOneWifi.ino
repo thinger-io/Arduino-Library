@@ -1,6 +1,3 @@
-#include <LTask.h>
-#include <LWiFi.h>
-#include <LWiFiClient.h>
 #include <ThingerLinkItOneWifi.h>
 
 ThingerLinkItOneWifi thing("user_id", "device_id", "device_credential");

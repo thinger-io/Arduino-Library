@@ -1,5 +1,4 @@
-#include <WiFiNINA.h>
-#include <ThingerWifi101.h>
+#include <ThingerWiFiNINA.h>
 
 #define USERNAME "your_user_name"
 #define DEVICE_ID "your_device_id"
@@ -8,7 +7,7 @@
 #define SSID "your_wifi_ssid"
 #define SSID_PASSWORD "your_wifi_ssid_password"
 
-ThingerWifi101 thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
+ThingerWiFiNINA thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
 
 void setup() {
   // configure wifi network

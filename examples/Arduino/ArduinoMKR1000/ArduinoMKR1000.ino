@@ -1,4 +1,3 @@
-#include <WiFi101.h>
 #include <ThingerWifi101.h>
 
 #define USERNAME "your_user_name"

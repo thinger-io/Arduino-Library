@@ -1,4 +1,3 @@
-#include <MKRGSM.h>
 #include <ThingerMKRGSM.h>
 
 #define USERNAME "your_user_name"

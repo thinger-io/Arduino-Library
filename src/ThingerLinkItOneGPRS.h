@@ -24,6 +24,9 @@
 #ifndef THINGER_LINKITONE_H
 #define THINGER_LINKITONE_H
 
+#include <LGPRS.h>
+#include <LGPRSClient.h>
+
 #include "ThingerClient.h"
 
 class ThingerLinkItOneGPRS : public ThingerClient {

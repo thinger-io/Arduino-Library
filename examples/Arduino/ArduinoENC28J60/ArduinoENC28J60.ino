@@ -1,5 +1,4 @@
 // UIPEthernet for ENC28J60: https://github.com/ntruchsess/arduino_uip
-#include <UIPEthernet.h>
 #include <ThingerENC28J60.h>
 
 #define USERNAME "your_username"

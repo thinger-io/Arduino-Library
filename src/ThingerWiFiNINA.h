@@ -21,26 +21,30 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#ifndef THINGER_ESP8266_H
-#define THINGER_ESP8266_H
+#ifndef THINGER_WIFNINA_H
+#define THINGER_WIFNINA_H
 
-#include <ESP8266WiFi.h>
+#include <WiFiNINA.h>
 #include "ThingerWifi.h"
 
-#ifndef _DISABLE_TLS_
-class ThingerESP8266 : public ThingerWifiClient<WiFiClientSecure>{
-#else
-class ThingerESP8266 : public ThingerWifiClient<WiFiClient>{
-#endif
+class ThingerWiFiNINA : public ThingerWifiClient<WiFiClient> {
 
 public:
-    ThingerESP8266(const char* user, const char* device, const char* device_credential) :
+    ThingerWiFiNINA(const char* user, const char* device, const char* device_credential) :
             ThingerWifiClient(user, device, device_credential)
     {}
 
-    ~ThingerESP8266(){
+    ~ThingerWiFiNINA(){
 
     }
+
+#ifndef _DISABLE_TLS_
+protected:
+    virtual bool connect_socket(){
+        return client_.connectSSL(THINGER_SERVER, THINGER_SSL_PORT);
+    }
+#endif
+
 };
 
 #endif

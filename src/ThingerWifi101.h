@@ -24,6 +24,7 @@
 #ifndef THINGER_WIFI101_H
 #define THINGER_WIFI101_H
 
+#include <WiFi101.h>
 #include "ThingerWifi.h"
 
 class ThingerWifi101 : public ThingerWifiClient<WiFiClient> {
