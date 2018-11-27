@@ -28,15 +28,17 @@
 
 using namespace protoson;
 
-#ifndef THINGER_USE_STATIC__MEMORY
-    dynamic_memory_allocator alloc;
-#else
-    #ifndef THINGER_STATIC__MEMORY_SIZE
-        #define THINGER_STATIC__MEMORY_SIZE 512
+#ifndef THINGER_DO_NOT_INIT_MEMORY_ALLOCATOR
+    #ifndef THINGER_USE_STATIC__MEMORY
+        dynamic_memory_allocator alloc;
+    #else
+        #ifndef THINGER_STATIC_MEMORY_SIZE
+            #define THINGER_STATIC_MEMORY_SIZE 512
+        #endif
+        circular_memory_allocator<THINGER_STATIC_MEMORY_SIZE> alloc;
     #endif
-    circular_memory_allocator<THINGER_STATIC__MEMORY_SIZE> alloc;
+    memory_allocator& protoson::pool = alloc;
 #endif
-memory_allocator& protoson::pool = alloc;
 
 #ifndef THINGER_SERVER
     #define THINGER_SERVER "iot.thinger.io"
@@ -398,6 +400,10 @@ public:
         }
     }
 
+    bool is_connected() const{
+        return client_.connected();
+    }
+
     void set_credentials(const char* username, const char* device_id, const char* device_password){
         username_ = username;
         device_id_ = device_id;
@@ -427,7 +433,7 @@ private:
 
 #if defined(__AVR__) || defined(ESP8266)
 
-void digital_pin(protoson::pson& in, int pin){
+inline void digital_pin(protoson::pson& in, int pin){
     if(in.is_empty()){
         in = (bool) digitalRead(pin);
     }
@@ -436,7 +442,7 @@ void digital_pin(protoson::pson& in, int pin){
     }
 }
 
-void inverted_digital_pin(protoson::pson& in, int pin){
+inline void inverted_digital_pin(protoson::pson& in, int pin){
     if(in.is_empty()){
         in = !(bool) digitalRead(pin);
     }
@@ -447,7 +453,7 @@ void inverted_digital_pin(protoson::pson& in, int pin){
 
 #else
 
-bool digital_pin(protoson::pson& in, int pin, bool& current_state){
+inline bool digital_pin(protoson::pson& in, int pin, bool& current_state){
     if(in.is_empty()) {
         in = current_state;
     }
@@ -457,7 +463,7 @@ bool digital_pin(protoson::pson& in, int pin, bool& current_state){
     }
 }
 
-bool inverted_digital_pin(protoson::pson& in, int pin, bool& current_state){
+inline bool inverted_digital_pin(protoson::pson& in, int pin, bool& current_state){
     if(in.is_empty()) {
         in = !current_state;
     }
