@@ -453,7 +453,7 @@ inline void inverted_digital_pin(protoson::pson& in, int pin){
 
 #else
 
-inline bool digital_pin(protoson::pson& in, int pin, bool& current_state){
+inline void digital_pin(protoson::pson& in, int pin, bool& current_state){
     if(in.is_empty()) {
         in = current_state;
     }
@@ -463,7 +463,7 @@ inline bool digital_pin(protoson::pson& in, int pin, bool& current_state){
     }
 }
 
-inline bool inverted_digital_pin(protoson::pson& in, int pin, bool& current_state){
+inline void inverted_digital_pin(protoson::pson& in, int pin, bool& current_state){
     if(in.is_empty()) {
         in = !current_state;
     }
