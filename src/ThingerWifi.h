@@ -31,9 +31,9 @@ class ThingerWifiClient : public ThingerClient {
 
 public:
     ThingerWifiClient(const char* user, const char* device, const char* device_credential) :
+            ThingerClient(client_, user, device, device_credential),
             wifi_ssid_(NULL),
-            wifi_password_(NULL),
-            ThingerClient(client_, user, device, device_credential)
+            wifi_password_(NULL)
     {}
 
     ~ThingerWifiClient(){
