@@ -257,6 +257,18 @@ namespace protoson {
             // we have up to 4 bits (0-15) for encoding fields in the first byte
         };
 
+        // interchange two different containers
+        static void swap(pson& source, pson& destination){
+            // destroy destination container data (if any)
+            destination.~pson();
+            // override fields
+            destination.value_ = source.value_;
+            destination.field_type_ = source.field_type_;
+            // 'clear' source container
+            source.value_ = NULL;
+            source.field_type_ = empty;
+        }
+
         bool is_boolean() const{
             return field_type_ == true_field || field_type_ == false_field;
         }
@@ -322,6 +334,8 @@ namespace protoson {
             }else{
                 pool.deallocate(value_);
             }
+            value_ = NULL;
+            field_type_ = empty;
         }
 
         template<class T>
@@ -375,7 +389,7 @@ namespace protoson {
             }
         }
 
-        void set_bytes(const void* bytes, size_t size) {
+        void set_bytes(void* bytes, size_t size) {
             if(size>0){
                 size_t varint_size = get_varint_size(size);
                 if(allocate(varint_size+size)){
