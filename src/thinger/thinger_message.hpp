@@ -29,6 +29,7 @@
 namespace thinger{
 
     enum message_type{
+        NONE                = 0,
         MESSAGE             = 1,
         KEEP_ALIVE          = 2
     };
@@ -64,7 +65,9 @@ namespace thinger{
             STREAM_SAMPLE       = 7,    // means that the message is related to a periodical streaming sample
             CALL_ENDPOINT       = 8,    // call the endpoint with the provided name (endpoint_id in identifier, value passed in payload)
             CALL_DEVICE         = 9,    // call a given device (device_id in identifier, resource in resource, and value, passed in payload)
-            BUCKET_DATA         = 10    // call the bucket with the provided name (bucket_id in identifier, value passed in payload)
+            BUCKET_DATA         = 10,    // call the bucket with the provided name (bucket_id in identifier, value passed in payload)
+            GET_PROPERTY        = 11,    // call the bucket with the provided name (bucket_id in identifier, value passed in payload)
+            SET_PROPERTY        = 12    // call the bucket with the provided name (bucket_id in identifier, value passed in payload)
         };
 
     public:
@@ -86,12 +89,12 @@ namespace thinger{
          * Initialize a default empty message
          */
         thinger_message() :
-                stream_id(0),
-                flag(NONE),
-                identifier(NULL),
-                resource(NULL),
-                data(NULL),
-                data_allocated(false)
+            stream_id(0),
+            flag(NONE),
+            identifier(NULL),
+            resource(NULL),
+            data(NULL),
+            data_allocated(false)
         {}
 
         ~thinger_message(){
@@ -144,6 +147,11 @@ namespace thinger{
     public:
         void set_stream_id(uint16_t stream_id) {
             thinger_message::stream_id = stream_id;
+        }
+
+        void set_random_stream_id(){
+            // TODO, random seed
+            thinger_message::stream_id = rand();
         }
 
         void set_signal_flag(signal_flag const &flag) {

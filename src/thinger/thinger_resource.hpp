@@ -49,7 +49,9 @@ public:
         NONE        = 3
     };
 
-    static int get_streaming_counter(){
+    static unsigned int& get_streaming_counter(){
+        // used to know the total number of streams
+        static unsigned int streaming_count_ = 0;
         return streaming_count_;
     }
 
@@ -75,18 +77,15 @@ private:
     unsigned long streaming_freq_;
     unsigned long last_streaming_;
 
-    // used to know the total number of streams
-    static unsigned int streaming_count_;
-
     // TODO change to pointer so it is not using more than a pointer size if not used?
     thinger_map<thinger_resource> sub_resources_;
 
     void enable_streaming(uint16_t stream_id, unsigned long streaming_freq){
         stream_id_ = stream_id;
         if(streaming_freq_==0 && streaming_freq>0){
-            streaming_count_++;
+            get_streaming_counter()++;
         }else if(streaming_freq_>0 && streaming_freq==0){
-            streaming_count_--;
+            get_streaming_counter()--;
         }
         streaming_freq_ = streaming_freq;
         last_streaming_ = 0;
@@ -99,7 +98,7 @@ public:
     void disable_streaming(){
         stream_id_ = 0;
         if(streaming_freq_>0){
-            streaming_count_--;
+            get_streaming_counter()--;
         }
         streaming_freq_ = 0;
     }
@@ -279,8 +278,6 @@ public:
         }
     }
 };
-
-    unsigned int thinger_resource::streaming_count_ = 0;
 
 }
 
