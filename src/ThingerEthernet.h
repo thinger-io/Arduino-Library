@@ -32,7 +32,9 @@ class ThingerEthernet : public ThingerClient {
 
 public:
     ThingerEthernet(const char* user, const char* device, const char* device_credential) :
-            ThingerClient(client_, user, device, device_credential), connected_(false)
+            ThingerClient(client_, user, device, device_credential),
+            connected_(false),
+            connect_callback_(NULL)
     {}
 
     ~ThingerEthernet(){
@@ -48,19 +50,23 @@ protected:
 
     virtual bool connect_network(){
         if(connected_) return true;
-        byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
-        unsigned long ethernet_timeout = millis();
-        THINGER_DEBUG("NETWORK", "Initializing Ethernet...");
-        while(Ethernet.begin(mac)==0){
-            THINGER_DEBUG("NETWORK", "Getting IP Address...");
-            if(millis() - ethernet_timeout > 30000) {
-                delay(1000);
-                return false;
+        if(connect_callback_!=NULL){
+            connected_ = connect_callback_();
+        }else{
+            byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+            unsigned long ethernet_timeout = millis();
+            THINGER_DEBUG("NETWORK", "Initializing Ethernet...");
+            while(Ethernet.begin(mac)==0){
+                THINGER_DEBUG("NETWORK", "Getting IP Address...");
+                if(millis() - ethernet_timeout > 30000) {
+                    delay(1000);
+                    return false;
+                }
             }
+            THINGER_DEBUG_VALUE("NETWORK", "Got IP Address: ", Ethernet.localIP());
+            delay(1000);
+            connected_ = true;
         }
-        THINGER_DEBUG_VALUE("NETWORK", "Got IP Address: ", Ethernet.localIP());
-        delay(1000);
-        connected_ = true;
         return connected_;
     }
 
@@ -68,9 +74,17 @@ protected:
         return false;
     }
 
+public:
+
+    void set_network_setup(bool (*connect_callback)(void)){
+        connect_callback_ = connect_callback;
+    }
+
 private:
     bool connected_;
     EthernetClient client_;
+    bool (*connect_callback_)(void);
+
 };
 
 #endif
