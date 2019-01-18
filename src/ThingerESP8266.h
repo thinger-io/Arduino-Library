@@ -41,6 +41,27 @@ public:
     ~ThingerESP8266(){
 
     }
+
+#ifndef _DISABLE_TLS_
+protected:
+    virtual bool connect_socket(){
+
+    // since CORE 2.5.0, now it is used BearSSL by default
+#ifndef _VALIDATE_SSL_CERTIFICATE_
+        client_.setInsecure();
+        THINGER_DEBUG("SSL/TLS", "Warning: use #define _VALIDATE_SSL_CERTIFICATE_ if certificate validation is required")
+#else
+        client_.setFingerprint(THINGER_TLS_FINGERPRINT);
+        THINGER_DEBUG_VALUE("SSL/TLS", "SHA-1 certificate fingerprint: ", THINGER_TLS_FINGERPRINT)
+#endif
+        return client_.connect(THINGER_SERVER, THINGER_SSL_PORT);
+    }
+
+    virtual bool secure_connection(){
+        return true;
+    }
+#endif
+
 };
 
 #endif
