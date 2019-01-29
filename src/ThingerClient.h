@@ -86,7 +86,12 @@ class ThingerClient : public thinger::thinger {
 
 public:
     ThingerClient(Client& client, const char* user, const char* device, const char* device_credential) :
-            client_(client), username_(user), device_id_(device), device_password_(device_credential)
+            client_(client),
+            username_(user),
+            device_id_(device),
+            device_password_(device_credential),
+            host_(THINGER_SERVER),
+            stop_(false)
 #ifndef THINGER_DISABLE_OUTPUT_BUFFER
             ,out_buffer_(NULL), out_size_(0), out_total_size_(0)
 #endif
@@ -262,7 +267,7 @@ protected:
     }
 
     virtual bool connect_socket(){
-        return client_.connect(THINGER_SERVER, secure_connection() ? THINGER_SSL_PORT : THINGER_PORT);
+        return client_.connect(host_, secure_connection() ? THINGER_SSL_PORT : THINGER_PORT);
     }
 
     virtual bool secure_connection(){
@@ -302,7 +307,7 @@ protected:
                 break;
             case SOCKET_CONNECTING:
                 Serial.print(F("[_SOCKET] Connecting to "));
-                Serial.print(THINGER_SERVER);
+                Serial.print(host_);
                 Serial.print(F(":"));
                 Serial.print(secure_connection() ? THINGER_SSL_PORT : THINGER_PORT);
                 Serial.println(F("..."));
@@ -340,8 +345,7 @@ protected:
     bool handle_connection()
     {
         // check if client is connected
-        bool client = client_.connected();
-        if(client) return true;
+        if(client_.connected()) return true;
 
         // client is not connected, so check underlying network
         if(!network_connected()){
@@ -383,7 +387,7 @@ protected:
 public:
 
     void stop(){
-        disconnected();
+        stop_ = true;
     }
 
     void handle(){
@@ -395,6 +399,10 @@ public:
             }
             #endif
             thinger::thinger::handle(millis(), available>0);
+            if(stop_){
+                stop_ = false;
+                disconnected();
+            }
         }else{
             delay(RECONNECTION_TIMEOUT); // get some delay for a connection retry
         }
@@ -410,6 +418,14 @@ public:
         device_password_ = device_password;
     }
 
+    void set_host(const char* host){
+        host_ = host;
+    }
+
+    const char* get_host(){
+        return host_;
+    }
+
     Client& get_client(){
         return client_;
     }
@@ -420,6 +436,8 @@ private:
     const char* username_;
     const char* device_id_;
     const char* device_password_;
+    const char* host_;
+    bool stop_;
 #ifndef THINGER_DISABLE_OUTPUT_BUFFER
     uint8_t * out_buffer_;
     size_t out_size_;
