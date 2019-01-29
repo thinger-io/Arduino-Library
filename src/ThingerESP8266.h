@@ -36,7 +36,9 @@ class ThingerESP8266 : public ThingerWifiClient<WiFiClient>{
 public:
     ThingerESP8266(const char* user, const char* device, const char* device_credential) :
             ThingerWifiClient(user, device, device_credential)
-    {}
+    {
+
+    }
 
     ~ThingerESP8266(){
 
@@ -54,7 +56,7 @@ protected:
         client_.setFingerprint(THINGER_TLS_FINGERPRINT);
         THINGER_DEBUG_VALUE("SSL/TLS", "SHA-1 certificate fingerprint: ", THINGER_TLS_FINGERPRINT)
 #endif
-        return client_.connect(THINGER_SERVER, THINGER_SSL_PORT);
+        return client_.connect(get_host(), THINGER_SSL_PORT);
     }
 
     virtual bool secure_connection(){

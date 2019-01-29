@@ -41,7 +41,7 @@ public:
 #ifndef _DISABLE_TLS_
 protected:
     virtual bool connect_socket(){
-        return client_.connectSSL(THINGER_SERVER, THINGER_SSL_PORT);
+        return client_.connectSSL(get_host(), THINGER_SSL_PORT);
     }
 #endif
 
