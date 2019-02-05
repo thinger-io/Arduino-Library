@@ -90,8 +90,7 @@ public:
             username_(user),
             device_id_(device),
             device_password_(device_credential),
-            host_(THINGER_SERVER),
-            stop_(false)
+            host_(THINGER_SERVER)
 #ifndef THINGER_DISABLE_OUTPUT_BUFFER
             ,out_buffer_(NULL), out_size_(0), out_total_size_(0)
 #endif
@@ -290,7 +289,8 @@ protected:
         SOCKET_ERROR,
         THINGER_AUTHENTICATING,
         THINGER_AUTHENTICATED,
-        THINGER_AUTH_FAILED
+        THINGER_AUTH_FAILED,
+        THINGER_STOP_REQUEST
     };
 
     virtual void thinger_state_listener(THINGER_STATE state){
@@ -337,6 +337,9 @@ protected:
                 break;
             case THINGER_AUTH_FAILED:
                 THINGER_DEBUG("THINGER", "Auth Failed! Check username, device id, or device credentials.");
+                break;
+            case THINGER_STOP_REQUEST:
+                THINGER_DEBUG("THINGER", "Client was requested to stop.");
                 break;
         }
         #endif
@@ -387,7 +390,10 @@ protected:
 public:
 
     void stop(){
-        stop_ = true;
+        thinger_state_listener(THINGER_STOP_REQUEST);
+        client_.stop();
+        thinger_state_listener(SOCKET_DISCONNECTED);
+        thinger::thinger::disconnected();
     }
 
     void handle(){
@@ -399,10 +405,6 @@ public:
             }
             #endif
             thinger::thinger::handle(millis(), available>0);
-            if(stop_){
-                stop_ = false;
-                disconnected();
-            }
         }else{
             delay(RECONNECTION_TIMEOUT); // get some delay for a connection retry
         }
@@ -437,7 +439,6 @@ private:
     const char* device_id_;
     const char* device_password_;
     const char* host_;
-    bool stop_;
 #ifndef THINGER_DISABLE_OUTPUT_BUFFER
     uint8_t * out_buffer_;
     size_t out_size_;
