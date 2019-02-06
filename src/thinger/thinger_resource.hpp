@@ -28,6 +28,13 @@
 #include "pson.h"
 #include "thinger_message.hpp"
 
+#ifdef __has_include
+#  if __has_include(<functional>)
+#    include <functional>
+#    define THINGER_USE_FUNCTIONAL
+#  endif
+#endif
+
 namespace thinger{
 
 
@@ -46,7 +53,7 @@ public:
         PRIVATE     = 0,
         PROTECTED   = 1,
         PUBLIC      = 2,
-        NONE        = 3
+        INTERNAL    = 3
     };
 
     static unsigned int& get_streaming_counter(){
@@ -58,12 +65,23 @@ public:
 private:
 
     // calback for function, input, output, or input/output
+#ifdef THINGER_USE_FUNCTIONAL
+
+    struct callback{
+        std::function<void()> run;
+        std::function<void(protoson::pson& io)> pson;
+        std::function<void(protoson::pson& in, protoson::pson& out)> pson_in_pson_out;
+    };
+
+#else
+
     union callback{
         void (*run)();
-        void (*pson_in)(protoson::pson& in);
-        void (*pson_out)(protoson::pson& out);
+        void (*pson)(protoson::pson& io);
         void (*pson_in_pson_out)(protoson::pson& in, protoson::pson& out);
-    };
+    }
+
+#endif
 
     // used for defining the resource
     io_type io_type_;
@@ -161,9 +179,9 @@ public:
 
     void fill_api_io(protoson::pson_object& content){
         if(io_type_ == pson_in){
-            callback_.pson_in(content["in"]);
+            callback_.pson(content["in"]);
         }else if(io_type_ == pson_out){
-            callback_.pson_out(content["out"]);
+            callback_.pson(content["out"]);
         }else if(io_type_ == pson_in_pson_out){
             callback_.pson_in_pson_out(content["in"], content["out"]);
         }
@@ -171,11 +189,79 @@ public:
 
     void fill_output(protoson::pson& content){
         if(io_type_ == pson_out){
-            callback_.pson_out(content);
+            callback_.pson(content);
         }
     }
 
 public:
+
+#ifdef THINGER_USE_FUNCTIONAL
+
+    /**
+     * Establish a function without input or output parameters
+     */
+    void operator=(std::function<void()> run_function){
+        io_type_ = run;
+        callback_.run = run_function;
+    }
+
+    /**
+     * Establish a function without input or output parameters
+     */
+    void set_function(std::function<void()> run_function){
+        io_type_ = run;
+        callback_.run = run_function;
+    }
+
+    /**
+     * Establish a function with input parameters
+     */
+    void operator<<(std::function<void(protoson::pson&)> in_function){
+        io_type_ = pson_in;
+        callback_.pson = in_function;
+    }
+
+    /**
+     * Establish a function with input parameters
+     */
+    void set_input(std::function<void(protoson::pson&)> in_function){
+        io_type_ = pson_in;
+        callback_.pson = in_function;
+    }
+
+    /**
+     * Establish a function that only generates an output
+     */
+    void operator>>(std::function<void(protoson::pson&)> out_function){
+        io_type_ = pson_out;
+        callback_.pson = out_function;
+    }
+
+    /**
+     * Establish a function that only generates an output
+     */
+    void set_output(std::function<void(protoson::pson&)> out_function){
+        io_type_ = pson_out;
+        callback_.pson = out_function;
+    }
+
+    /**
+     * Establish a function that can receive input parameters and generate an output
+     */
+    void operator=(std::function<void(protoson::pson& in, protoson::pson& out)> pson_in_pson_out_function){
+        io_type_ = pson_in_pson_out;
+        callback_.pson_in_pson_out = pson_in_pson_out_function;
+    }
+
+    /**
+     * Establish a function that can receive input parameters and generate an output
+     */
+    void set_input_output(std::function<void(protoson::pson& in, protoson::pson& out)> pson_in_pson_out_function){
+        io_type_ = pson_in_pson_out;
+        callback_.pson_in_pson_out = pson_in_pson_out_function;
+    }
+
+#else
 
     /**
      * Establish a function without input or output parameters
@@ -198,7 +284,7 @@ public:
      */
     void operator<<(void (*in_function)(protoson::pson& in)){
         io_type_ = pson_in;
-        callback_.pson_in = in_function;
+        callback_.pson = in_function;
     }
 
     /**
@@ -206,7 +292,7 @@ public:
      */
     void set_input(void (*in_function)(protoson::pson& in)){
         io_type_ = pson_in;
-        callback_.pson_in = in_function;
+        callback_.pson = in_function;
     }
 
     /**
@@ -214,7 +300,7 @@ public:
      */
     void operator>>(void (*out_function)(protoson::pson& out)){
         io_type_ = pson_out;
-        callback_.pson_out = out_function;
+        callback_.pson = out_function;
     }
 
     /**
@@ -222,7 +308,7 @@ public:
      */
     void set_output(void (*out_function)(protoson::pson& out)){
         io_type_ = pson_out;
-        callback_.pson_out = out_function;
+        callback_.pson = out_function;
     }
 
     /**
@@ -241,6 +327,8 @@ public:
         callback_.pson_in_pson_out = pson_in_pson_out_function;
     }
 
+#endif
+
     /**
      * Handle a request and fill a possible response
      */
@@ -249,14 +337,12 @@ public:
             // default action over the stream (run the resource)
             case thinger_message::NONE:
                 switch (io_type_){
+                    case pson_in:
+                    case pson_out:
+                        callback_.pson(request);
+                        break;
                     case run:
                         callback_.run();
-                        break;
-                    case pson_in:
-                        callback_.pson_in(request);
-                        break;
-                    case pson_out:
-                        callback_.pson_out(response);
                         break;
                     case pson_in_pson_out:
                         callback_.pson_in_pson_out(request, response);
