@@ -319,17 +319,31 @@ namespace thinger{
 
             // handle streaming resources
             if(thinger_resource::get_streaming_counter()>0){
-                thinger_map<thinger_resource>::entry* current = resources_.begin();
-                while(current!=NULL){
-                    if(current->value_.stream_required(current_time)){
-                        stream_resource(current->value_, thinger_message::STREAM_SAMPLE);
-                    }
-                    current = current->next_;
-                }
+                handle_streaming(resources_, current_time);
             }
         }
 
     private:
+
+        /**
+         * Iterates over all resources and subresources to determine when a streaming is required.
+         * @param resources
+         * @param current_time
+         */
+        void handle_streaming(thinger_map<thinger_resource>& resources, unsigned long current_time){
+            thinger_map<thinger_resource>::entry* current = resources.begin();
+            while(current!=NULL){
+                thinger_resource& resource = current->value_;
+                if(resource.stream_required(current_time)){
+                    stream_resource(resource, thinger_message::STREAM_SAMPLE);
+                }
+                thinger_map<thinger_resource>& sub_resources = resource.get_resources();
+                if(!sub_resources.empty()){
+                    handle_streaming(sub_resources, current_time);
+                }
+                current = current->next_;
+            }
+        }
 
         /**
          * Decode a message from the current connection. It should be called when there are bytes available for reading.

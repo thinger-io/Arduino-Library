@@ -193,6 +193,10 @@ public:
         }
     }
 
+    thinger_map<thinger_resource>& get_resources(){
+        return sub_resources_;
+    }
+
 public:
 
 #ifdef THINGER_USE_FUNCTIONAL
