@@ -79,7 +79,7 @@ private:
         void (*run)();
         void (*pson)(protoson::pson& io);
         void (*pson_in_pson_out)(protoson::pson& in, protoson::pson& out);
-    }
+    };
 
 #endif
 
