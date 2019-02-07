@@ -342,6 +342,8 @@ public:
             case thinger_message::NONE:
                 switch (io_type_){
                     case pson_in:
+                        callback_.pson(request);
+                        break;
                     case pson_out:
                         callback_.pson(request);
                         break;
