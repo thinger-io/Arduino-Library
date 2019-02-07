@@ -24,6 +24,7 @@
 #ifndef THINGER_CLIENT_H
 #define THINGER_CLIENT_H
 
+#include <Arduino.h>
 #include "thinger/thinger.h"
 
 using namespace protoson;
