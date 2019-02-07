@@ -345,7 +345,7 @@ public:
                         callback_.pson(request);
                         break;
                     case pson_out:
-                        callback_.pson(request);
+                        callback_.pson(response);
                         break;
                     case run:
                         callback_.run();
