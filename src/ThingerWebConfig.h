@@ -78,19 +78,18 @@ private:
 class ThingerWebConfig : public ThingerClient {
 
 public:
-    ThingerWebConfig() : ThingerClient(client_, user, device, device_credential)
+    ThingerWebConfig(const char* user="", const char* device="", const char* credential="") :
+        ThingerClient(client_, user_, device_, credential_)
     {
-        // initialize empty configuration
-        user[0] = '\0';
-        device[0] = '\0';
-        device_credential[0] = '\0';
+        strcpy(user_, user);
+        strcpy(device_, device);
+        strcpy(credential_, credential);
+        initial_credentials_ = strlen(user_) != 0 && strlen(device_) != 0 || strlen(credential_) != 0;
     }
 
     ~ThingerWebConfig(){
 
     }
-
-
 
     void clean_credentials(){
         THINGER_DEBUG("_CONFIG", "Cleaning credentials...");
@@ -140,11 +139,11 @@ protected:
     }
 
     virtual bool connect_network(){
-        bool thingerCredentials = false;
+        bool thingerCredentials = initial_credentials_;
 
         // read current thinger.io credentials from file system
         THINGER_DEBUG("_CONFIG", "Mounting FS...");
-        if (SPIFFS.begin()) {
+        if (!thingerCredentials && SPIFFS.begin()) {
             THINGER_DEBUG("_CONFIG", "FS Mounted!");
             if (SPIFFS.exists(CONFIG_FILE)) {
                 //file exists, reading and loading
@@ -158,15 +157,15 @@ protected:
                     configFile.close();
 
                     THINGER_DEBUG("_CONFIG", "Config File Decoded!");
-                    strcpy(user, config["user"]);
-                    strcpy(device, config["device"]);
-                    strcpy(device_credential, config["credential"]);
+                    strcpy(user_, config["user"]);
+                    strcpy(device_, config["device"]);
+                    strcpy(credential_, config["credential"]);
 
                     thingerCredentials = true;
 
-                    THINGER_DEBUG_VALUE("_CONFIG", "User: ", user);
-                    THINGER_DEBUG_VALUE("_CONFIG", "Device: ", device);
-                    THINGER_DEBUG_VALUE("_CONFIG", "Credential: ", device_credential);
+                    THINGER_DEBUG_VALUE("_CONFIG", "User: ", user_);
+                    THINGER_DEBUG_VALUE("_CONFIG", "Device: ", device_);
+                    THINGER_DEBUG_VALUE("_CONFIG", "Credential: ", credential_);
                 }else{
                     THINGER_DEBUG("_CONFIG", "Config File is Not Available!");
                 }
@@ -199,13 +198,16 @@ protected:
             wifiManager.setDebugOutput(false);
 #endif
 
-            // define additional wifi parameters
-            WiFiManagerParameter user_parameter("user", "User Id", user, 40);
-            WiFiManagerParameter device_parameter("device", "Device Id", device, 40);
-            WiFiManagerParameter credential_parameter("credential", "Device Credential", device_credential, 40);
-            wifiManager.addParameter(&user_parameter);
-            wifiManager.addParameter(&device_parameter);
-            wifiManager.addParameter(&credential_parameter);
+            WiFiManagerParameter user_parameter("user", "User Id", user_, 40);
+            WiFiManagerParameter device_parameter("device", "Device Id", device_, 40);
+            WiFiManagerParameter credential_parameter("credential", "Device Credential", credential_, 40);
+
+            // add credentials paramteres if not set at startup
+            if(!initial_credentials_){
+                wifiManager.addParameter(&user_parameter);
+                wifiManager.addParameter(&device_parameter);
+                wifiManager.addParameter(&credential_parameter);
+            }
 
             bool wifiConnected = wifiManager.startConfigPortal(THINGER_DEVICE_SSID, THINGER_DEVICE_SSID_PSWD);
 
@@ -218,26 +220,28 @@ protected:
             }
 
             //read updated parameters
-            strcpy(user, user_parameter.getValue());
-            strcpy(device, device_parameter.getValue());
-            strcpy(device_credential, credential_parameter.getValue());
+            if(!initial_credentials_){
+                strcpy(user_, user_parameter.getValue());
+                strcpy(device_, device_parameter.getValue());
+                strcpy(credential_, credential_parameter.getValue());
 
-            THINGER_DEBUG("_CONFIG", "Updating Device Info...");
-            if (SPIFFS.begin()) {
-                File configFile = SPIFFS.open(CONFIG_FILE, "w");
-                if (configFile) {
-                    pson config;
-                    config["user"] = (const char *) user;
-                    config["device"] = (const char *) device;
-                    config["credential"] = (const char *) device_credential;
-                    pson_spiffs_encoder encoder(configFile);
-                    encoder.encode(config);
-                    configFile.close();
-                    THINGER_DEBUG("_CONFIG", "Done!");
-                } else {
-                    THINGER_DEBUG("_CONFIG", "Failed to open config file for writing!");
+                THINGER_DEBUG("_CONFIG", "Updating Device Info...");
+                if (SPIFFS.begin()) {
+                    File configFile = SPIFFS.open(CONFIG_FILE, "w");
+                    if (configFile) {
+                        pson config;
+                        config["user"] = (const char *) user_;
+                        config["device"] = (const char *) device_;
+                        config["credential"] = (const char *) credential_;
+                        pson_spiffs_encoder encoder(configFile);
+                        encoder.encode(config);
+                        configFile.close();
+                        THINGER_DEBUG("_CONFIG", "Done!");
+                    } else {
+                        THINGER_DEBUG("_CONFIG", "Failed to open config file for writing!");
+                    }
+                    SPIFFS.end();
                 }
-                SPIFFS.end();
             }
         }
 
@@ -250,9 +254,10 @@ private:
 #else
     WiFiClient client_;
 #endif
-    char user[40];
-    char device[40];
-    char device_credential[40];
+    char user_[40];
+    char device_[40];
+    char credential_[40];
+    bool initial_credentials_;
 };
 
 #endif
