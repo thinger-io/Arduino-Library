@@ -75,7 +75,8 @@ using namespace protoson;
 #endif
 
 
-#ifdef _DEBUG_
+#if defined(_DEBUG_) || defined(THINGER_SERIAL_DEBUG)
+    #define _DEBUG_
     #define THINGER_DEBUG(type, text) Serial.print("["); Serial.print(F(type)); Serial.print("] "); Serial.println(F(text));
     #define THINGER_DEBUG_VALUE(type, text, value) Serial.print("["); Serial.print(F(type)); Serial.print("] "); Serial.print(F(text)); Serial.println(value);
 #else
@@ -267,7 +268,8 @@ protected:
     }
 
     virtual bool connect_socket(){
-        return client_.connect(host_, secure_connection() ? THINGER_SSL_PORT : THINGER_PORT);
+        synchronized(bool result=client_.connect(host_, secure_connection() ? THINGER_SSL_PORT : THINGER_PORT);)
+        return result;
     }
 
     virtual bool secure_connection(){
@@ -349,7 +351,7 @@ protected:
     bool handle_connection()
     {
         // check if client is connected
-        if(client_.connected()) return true;
+        if(is_connected()) return true;
 
         // client is not connected, so check underlying network
         if(!network_connected()){
@@ -399,7 +401,7 @@ public:
 
     void handle(){
         if(handle_connection()){
-            size_t available = client_.available();
+            synchronized(size_t available = client_.available();)
             #ifdef _DEBUG_
             if(available>0){
                 THINGER_DEBUG_VALUE("THINGER", "Available bytes: ", available);
@@ -411,8 +413,9 @@ public:
         }
     }
 
-    bool is_connected() const{
-        return client_.connected();
+    bool is_connected(){
+        synchronized(bool result = client_.connected();)
+        return result;
     }
 
     void set_credentials(const char* username, const char* device_id, const char* device_password){

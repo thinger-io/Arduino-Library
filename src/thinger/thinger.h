@@ -35,6 +35,17 @@
 
 #define KEEP_ALIVE_MILLIS 60000
 
+#ifdef THINGER_FREE_RTOS_MULTITASK
+    #define THINGER_MULTITASK
+    #define synchronized(code)  \
+        lock();                 \
+        code                    \
+        unlock();
+#else
+    #define synchronized(code)  \
+        code
+#endif
+
 namespace thinger{
 
     using namespace protoson;
@@ -47,7 +58,9 @@ namespace thinger{
                 last_keep_alive(0),
                 keep_alive_response(true)
         {
-
+#ifdef THINGER_FREE_RTOS_MULTITASK
+            semaphore_ = xSemaphoreCreateMutex();
+#endif
         }
 
         virtual ~thinger(){
@@ -61,8 +74,21 @@ namespace thinger{
         bool keep_alive_response;
         thinger_map<thinger_resource> resources_;
 
+#ifdef THINGER_FREE_RTOS_MULTITASK
+        SemaphoreHandle_t semaphore_;
+#endif
+
     protected:
 
+#ifdef THINGER_FREE_RTOS_MULTITASK
+        bool lock(){
+            return xSemaphoreTake(semaphore_, portMAX_DELAY);
+        }
+
+        bool unlock(){
+            return xSemaphoreGive(semaphore_);
+        }
+#endif
         /**
          * Can be override to start reconnection process
          */
@@ -77,11 +103,9 @@ namespace thinger{
             }
         }
 
-        bool connect(const char* username, const char* device_id, const char* credential)
-        {
+        bool connect(const char* username, const char* device_id, const char* credential){
             // reset keep alive status for each connection
             keep_alive_response = true;
-
             thinger_message message;
             message.set_signal_flag(thinger_message::AUTH);
             message.resources().add(username).add(device_id).add(credential);
@@ -115,12 +139,11 @@ namespace thinger{
          * @return
          */
         bool set_property(const char* property_identifier, pson& data, bool confirm_write=false){
-            thinger_message request;
-            if(confirm_write) request.set_random_stream_id();
-            request.set_signal_flag(thinger_message::SET_PROPERTY);
-            request.set_identifier(property_identifier);
-            request.set_data(data);
-            return send_message_with_ack(request, confirm_write);
+            thinger_message message;
+            message.set_signal_flag(thinger_message::SET_PROPERTY);
+            message.set_identifier(property_identifier);
+            message.set_data(data);
+            return send_message_with_ack(message, confirm_write);
         }
 
         /**
@@ -129,12 +152,12 @@ namespace thinger{
          * @param resource_name remote resource identifier (must be defined in the remote device)
          * @return
          */
-        bool call_device(const char* device_name, const char* resource_name){
+        bool call_device(const char* device_name, const char* resource_name, bool confirm_call=false){
             thinger_message message;
             message.set_signal_flag(thinger_message::CALL_DEVICE);
             message.set_identifier(device_name);
             message.resources().add(resource_name);
-            return send_message(message);
+            return send_message_with_ack(message, confirm_call);
         }
 
         /**
@@ -144,13 +167,13 @@ namespace thinger{
         * @param data pson structure to be sent to the remote resource input
         * @return
         */
-        bool call_device(const char* device_name, const char* resource_name, pson& data){
+        bool call_device(const char* device_name, const char* resource_name, pson& data, bool confirm_call=false){
             thinger_message message;
             message.set_signal_flag(thinger_message::CALL_DEVICE);
             message.set_identifier(device_name);
             message.resources().add(resource_name);
             message.set_data(data);
-            return send_message(message);
+            return send_message_with_ack(message, confirm_call);
         }
 
         /**
@@ -160,13 +183,13 @@ namespace thinger{
         * @param resource local device resource, as defined in code, i.e., thing["location"]
         * @return
         */
-        bool call_device(const char* device_name, const char* resource_name, thinger_resource& resource){
+        bool call_device(const char* device_name, const char* resource_name, thinger_resource& resource, bool confirm_call=false){
             thinger_message message;
             message.set_signal_flag(thinger_message::CALL_DEVICE);
             message.set_identifier(device_name);
             message.resources().add(resource_name);
             resource.fill_output(message.get_data());
-            return send_message(message);
+            return send_message_with_ack(message, confirm_call);
         }
 
         /**
@@ -174,11 +197,11 @@ namespace thinger{
          * @param endpoint_name endpoint identifier, as defined in the server
          * @return
          */
-        bool call_endpoint(const char* endpoint_name){
+        bool call_endpoint(const char* endpoint_name, bool confirm_call=false){
             thinger_message message;
             message.set_signal_flag(thinger_message::CALL_ENDPOINT);
             message.set_identifier(endpoint_name);
-            return send_message(message);
+            return send_message_with_ack(message, confirm_call);
         }
 
         /**
@@ -187,12 +210,12 @@ namespace thinger{
          * @param data data in pson format to be used as data source for the endpoint call
          * @return
          */
-        bool call_endpoint(const char* endpoint_name, pson& data){
+        bool call_endpoint(const char* endpoint_name, pson& data, bool confirm_call=false){
             thinger_message message;
             message.set_signal_flag(thinger_message::CALL_ENDPOINT);
             message.set_identifier(endpoint_name);
             message.set_data(data);
-            return send_message(message);
+            return send_message_with_ack(message, confirm_call);
         }
 
         /**
@@ -201,12 +224,12 @@ namespace thinger{
          * @param resource resource to be used as data source for the endpoint call, i.e., thing["location"]
          * @return
          */
-        bool call_endpoint(const char* endpoint_name, thinger_resource& resource){
+        bool call_endpoint(const char* endpoint_name, thinger_resource& resource, bool confirm_call=false){
             thinger_message message;
             message.set_signal_flag(thinger_message::CALL_ENDPOINT);
             message.set_identifier(endpoint_name);
             resource.fill_output(message.get_data());
-            return send_message(message);
+            return send_message_with_ack(message, confirm_call);
         }
 
         /**
@@ -215,8 +238,8 @@ namespace thinger{
          * @param resource_name name of the resource to be used as data source for the endpoint call, i.e., "location"
          * @return
          */
-        bool call_endpoint(const char* endpoint_name, const char* resource_name){
-            return call_endpoint(endpoint_name, resources_[resource_name]);
+        bool call_endpoint(const char* endpoint_name, const char* resource_name, bool confirm_call=false){
+            return call_endpoint(endpoint_name, resources_[resource_name], confirm_call);
         }
 
         /**
@@ -225,12 +248,12 @@ namespace thinger{
          * @param data data to write defined in a pson structure
          * @return
          */
-        bool write_bucket(const char* bucket_id, pson& data){
+        bool write_bucket(const char* bucket_id, pson& data, bool confirm_write=false){
             thinger_message message;
             message.set_signal_flag(thinger_message::BUCKET_DATA);
             message.set_identifier(bucket_id);
             message.set_data(data);
-            return send_message(message);
+            return send_message_with_ack(message, confirm_write);
         }
 
         /**
@@ -239,12 +262,12 @@ namespace thinger{
          * @param resource_name resource defined in the code, i.e., thing["location"]
          * @return
          */
-        bool write_bucket(const char* bucket_id, thinger_resource& resource){
+        bool write_bucket(const char* bucket_id, thinger_resource& resource, bool confirm_write=false){
             thinger_message message;
             message.set_signal_flag(thinger_message::BUCKET_DATA);
             message.set_identifier(bucket_id);
             resource.fill_output(message.get_data());
-            return send_message(message);
+            return send_message_with_ack(message, confirm_write);
         }
 
         /**
@@ -253,8 +276,8 @@ namespace thinger{
          * @param resource_name resource identifier defined in the code, i.e, "location"
          * @return
          */
-        bool write_bucket(const char* bucket_id, const char* resource_name){
-            return write_bucket(bucket_id, resources_[resource_name]);
+        bool write_bucket(const char* bucket_id, const char* resource_name, bool confirm_write=false){
+            return write_bucket(bucket_id, resources_[resource_name], confirm_write);
         }
 
         /**
@@ -303,7 +326,8 @@ namespace thinger{
             // handle input
             if(bytes_available){
                 thinger_message message;
-                if(read_message(message)==MESSAGE) handle_request_received(message);
+                synchronized(bool result = read_message(message)==MESSAGE;)
+                if(result) handle_request_received(message);
             }
 
             // handle keep alive (send keep alive to server to prevent disconnection)
@@ -421,7 +445,8 @@ namespace thinger{
          * @return true if the message was written to the socket
          */
         bool send_message(thinger_message& message){
-            return write_message(message);
+            synchronized(bool result = write_message(message);)
+            return result;
         }
 
         /**
@@ -431,7 +456,9 @@ namespace thinger{
          * @return true if the message was acknowledged by the server.
          */
         bool send_message_with_ack(thinger_message& message, bool wait_ack=true){
-            return write_message(message) && (!wait_ack || wait_response(message));
+            if(wait_ack) message.set_random_stream_id();
+            synchronized(bool result = write_message(message) && (!wait_ack || wait_response(message));)
+            return result;
         }
 
         /**
@@ -441,7 +468,8 @@ namespace thinger{
          * @return true if the message was acknowledged by the server.
          */
         bool send_message(thinger_message& message, protoson::pson& data){
-            return write_message(message) && wait_response(message, &data);
+            synchronized(bool result = write_message(message) && wait_response(message, &data););
+            return result;
         }
 
         /**
@@ -449,9 +477,13 @@ namespace thinger{
          * @return true if the keep alive was written to the socket
          */
         bool send_keep_alive(){
-            encoder.pb_encode_varint(KEEP_ALIVE);
-            encoder.pb_encode_varint(0);
-            return write(NULL, 0, true);
+            bool result = false;
+            synchronized(
+                encoder.pb_encode_varint(KEEP_ALIVE);
+                encoder.pb_encode_varint(0);
+                result = write(NULL, 0, true);
+            )
+            return result;
         }
 
         /**
