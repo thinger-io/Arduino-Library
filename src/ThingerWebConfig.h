@@ -41,6 +41,9 @@
     #define THINGER_DEVICE_SSID_PSWD "thinger.io"
 #endif
 
+#define MAX_ADDITIONAL_PARAMETERS 5
+
+
 class pson_spiffs_decoder : public protoson::pson_decoder{
 public:
     pson_spiffs_decoder(File& file) : file_(file)
@@ -79,12 +82,11 @@ class ThingerWebConfig : public ThingerClient {
 
 public:
     ThingerWebConfig(const char* user="", const char* device="", const char* credential="") :
-        ThingerClient(client_, user_, device_, credential_)
+        ThingerClient(client_, user_, device_, credential_), custom_params_(0), config_callback_(NULL)
     {
         strcpy(user_, user);
         strcpy(device_, device);
         strcpy(credential_, credential);
-        initial_credentials_ = strlen(user_) != 0 && strlen(device_) != 0 || strlen(credential_) != 0;
     }
 
     ~ThingerWebConfig(){
@@ -139,11 +141,11 @@ protected:
     }
 
     virtual bool connect_network(){
-        bool thingerCredentials = initial_credentials_;
+        bool thinger_config = false;
 
         // read current thinger.io credentials from file system
         THINGER_DEBUG("_CONFIG", "Mounting FS...");
-        if (!thingerCredentials && SPIFFS.begin()) {
+        if (SPIFFS.begin()) {
             THINGER_DEBUG("_CONFIG", "FS Mounted!");
             if (SPIFFS.exists(CONFIG_FILE)) {
                 //file exists, reading and loading
@@ -157,15 +159,17 @@ protected:
                     configFile.close();
 
                     THINGER_DEBUG("_CONFIG", "Config File Decoded!");
-                    strcpy(user_, config["user"]);
-                    strcpy(device_, config["device"]);
-                    strcpy(credential_, config["credential"]);
+                    if(strlen(user_)==0)        strcpy(user_, config["user"]);
+                    if(strlen(device_)==0)      strcpy(device_, config["device"]);
+                    if(strlen(credential_)==0)  strcpy(credential_, config["credential"]);
 
-                    thingerCredentials = true;
+                    thinger_config = true;
 
                     THINGER_DEBUG_VALUE("_CONFIG", "User: ", user_);
                     THINGER_DEBUG_VALUE("_CONFIG", "Device: ", device_);
                     THINGER_DEBUG_VALUE("_CONFIG", "Credential: ", credential_);
+
+                    if(config_callback_!=NULL) config_callback_(config);
                 }else{
                     THINGER_DEBUG("_CONFIG", "Config File is Not Available!");
                 }
@@ -177,7 +181,7 @@ protected:
         }
 
         // if credentials and wifi already configured, try to connect to wifi
-        if(thingerCredentials && WiFi.SSID() && !WiFi.SSID().length()==0){
+        if(thinger_config && WiFi.SSID() && !WiFi.SSID().length()==0){
             THINGER_DEBUG("_CONFIG", "Connecting using previous configuration...");
             unsigned long wifi_timeout = millis();
             THINGER_DEBUG_VALUE("NETWORK", "Connecting to network ", WiFi.SSID());
@@ -202,11 +206,14 @@ protected:
             WiFiManagerParameter device_parameter("device", "Device Id", device_, 40);
             WiFiManagerParameter credential_parameter("credential", "Device Credential", credential_, 40);
 
-            // add credentials paramteres if not set at startup
-            if(!initial_credentials_){
-                wifiManager.addParameter(&user_parameter);
-                wifiManager.addParameter(&device_parameter);
-                wifiManager.addParameter(&credential_parameter);
+            // add credentials parameters if not set at startup
+            if(strlen(user_)==0)        wifiManager.addParameter(&user_parameter);
+            if(strlen(device_)==0)      wifiManager.addParameter(&user_parameter);
+            if(strlen(credential_)==0)  wifiManager.addParameter(&credential_parameter);
+
+            // add custom parameters
+            for(int i=0; i<custom_params_; i++){
+                wifiManager.addParameter(parameters_[i]);
             }
 
             bool wifiConnected = wifiManager.startConfigPortal(THINGER_DEVICE_SSID, THINGER_DEVICE_SSID_PSWD);
@@ -219,33 +226,63 @@ protected:
                 return false;
             }
 
-            //read updated parameters
-            if(!initial_credentials_){
-                strcpy(user_, user_parameter.getValue());
-                strcpy(device_, device_parameter.getValue());
-                strcpy(credential_, credential_parameter.getValue());
+            // store new values (if it was empty)
+            if(strlen(user_)==0)        strcpy(user_, user_parameter.getValue());
+            if(strlen(device_)==0)      strcpy(device_, device_parameter.getValue());
+            if(strlen(credential_)==0)  strcpy(credential_, credential_parameter.getValue());
 
-                THINGER_DEBUG("_CONFIG", "Updating Device Info...");
-                if (SPIFFS.begin()) {
-                    File configFile = SPIFFS.open(CONFIG_FILE, "w");
-                    if (configFile) {
-                        pson config;
-                        config["user"] = (const char *) user_;
-                        config["device"] = (const char *) device_;
-                        config["credential"] = (const char *) credential_;
-                        pson_spiffs_encoder encoder(configFile);
-                        encoder.encode(config);
-                        configFile.close();
-                        THINGER_DEBUG("_CONFIG", "Done!");
-                    } else {
-                        THINGER_DEBUG("_CONFIG", "Failed to open config file for writing!");
-                    }
-                    SPIFFS.end();
-                }
+            pson config;
+            config["user"] = (const char *) user_;
+            config["device"] = (const char *) device_;
+            config["credential"] = (const char *) credential_;
+
+            for(int i=0; i<custom_params_; i++){
+                config[parameters_[i]->getID()] = parameters_[i]->getValue();
             }
+
+            THINGER_DEBUG("_CONFIG", "Updating Device Info...");
+            if (SPIFFS.begin()) {
+                File configFile = SPIFFS.open(CONFIG_FILE, "w");
+                if (configFile) {
+                    pson_spiffs_encoder encoder(configFile);
+                    encoder.encode(config);
+                    configFile.close();
+                    THINGER_DEBUG("_CONFIG", "Done!");
+                } else {
+                    THINGER_DEBUG("_CONFIG", "Failed to open config file for writing!");
+                }
+                SPIFFS.end();
+            }
+
+            if(config_callback_!=NULL) config_callback_(config);
         }
 
         return true;
+    }
+
+public:
+    bool add_setup_parameter(const char *id, const char *placeholder, const char *defaultValue, int length, const char *custom=""){
+        if(custom_params_<MAX_ADDITIONAL_PARAMETERS){
+            parameters_[custom_params_++]= new WiFiManagerParameter(id, placeholder, defaultValue, length, custom);
+            return true;
+        }
+       return false;
+    }
+
+    void set_on_config_callback(void (*config_pointer)(pson &)){
+        config_callback_ = config_pointer;
+    }
+
+    void set_user(const char*user){
+        strcpy(user_, user);
+    }
+
+    void set_device(const char*device){
+        strcpy(device_, device);
+    }
+
+    void set_credential(const char*credential){
+        strcpy(credential_, credential);
     }
 
 private:
@@ -257,7 +294,9 @@ private:
     char user_[40];
     char device_[40];
     char credential_[40];
-    bool initial_credentials_;
+    WiFiManagerParameter *parameters_[MAX_ADDITIONAL_PARAMETERS] ;
+    int custom_params_;
+    void (*config_callback_)(pson &);
 };
 
 #endif
