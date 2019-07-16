@@ -252,7 +252,7 @@ protected:
             if(wifi_callback_!=NULL) wifi_callback_(wifiConnected);
         }
 
-        return true;
+        return wifiConnected;
     }
 
 public:
