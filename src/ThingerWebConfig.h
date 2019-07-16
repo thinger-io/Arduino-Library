@@ -82,7 +82,8 @@ class ThingerWebConfig : public ThingerClient {
 
 public:
     ThingerWebConfig(const char* user="", const char* device="", const char* credential="") :
-        ThingerClient(client_, user_, device_, credential_), custom_params_(0), config_callback_(NULL)
+        ThingerClient(client_, user_, device_, credential_), custom_params_(0),
+        config_callback_(NULL), wifi_callback_(NULL), captive_portal_callback_(NULL)
     {
         strcpy(user_, user);
         strcpy(device_, device);
@@ -193,7 +194,6 @@ protected:
         // don't have credentials or Wifi, initiate config portal
         }else{
             THINGER_DEBUG("_CONFIG", "Starting Webconfig...");
-
             WiFiManager wifiManager;
 
 #ifdef _DEBUG_
@@ -216,15 +216,9 @@ protected:
                 wifiManager.addParameter(parameters_[i]);
             }
 
-            bool wifiConnected = wifiManager.startConfigPortal(THINGER_DEVICE_SSID, THINGER_DEVICE_SSID_PSWD);
+            if(captive_portal_callback_!=NULL) captive_portal_callback_(wifiManager);
 
-            if (!wifiConnected) {
-                WiFi.disconnect();
-                THINGER_DEBUG("NETWORK", "Configuration Failed! Resetting...");
-                delay(3000);
-                ESP.reset();
-                return false;
-            }
+            bool wifiConnected = wifiManager.startConfigPortal(THINGER_DEVICE_SSID, THINGER_DEVICE_SSID_PSWD);
 
             // store new values (if it was empty)
             if(strlen(user_)==0)        strcpy(user_, user_parameter.getValue());
@@ -255,6 +249,7 @@ protected:
             }
 
             if(config_callback_!=NULL) config_callback_(config);
+            if(wifi_callback_!=NULL) wifi_callback_(wifiConnected);
         }
 
         return true;
@@ -269,8 +264,16 @@ public:
        return false;
     }
 
-    void set_on_config_callback(void (*config_pointer)(pson &)){
-        config_callback_ = config_pointer;
+    void set_on_config_callback(void (*callback)(pson &)){
+        config_callback_ = callback;
+    }
+
+    void set_on_wifi_config(void (*callback)(bool)){
+        wifi_callback_ = callback;
+    }
+
+    void set_on_captive_portal_run(void (*callback)(WiFiManager&)){
+        captive_portal_callback_ = callback;
     }
 
     void set_user(const char*user){
@@ -297,6 +300,9 @@ private:
     WiFiManagerParameter *parameters_[MAX_ADDITIONAL_PARAMETERS] ;
     int custom_params_;
     void (*config_callback_)(pson &);
+    void (*wifi_callback_)(bool);
+    void (*captive_portal_callback_)(WiFiManager& manager);
+
 };
 
 #endif
