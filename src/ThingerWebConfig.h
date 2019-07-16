@@ -208,7 +208,7 @@ protected:
 
             // add credentials parameters if not set at startup
             if(strlen(user_)==0)        wifiManager.addParameter(&user_parameter);
-            if(strlen(device_)==0)      wifiManager.addParameter(&user_parameter);
+            if(strlen(device_)==0)      wifiManager.addParameter(&device_parameter);
             if(strlen(credential_)==0)  wifiManager.addParameter(&credential_parameter);
 
             // add custom parameters
