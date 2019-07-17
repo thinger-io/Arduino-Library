@@ -109,7 +109,17 @@ namespace thinger{
             thinger_message message;
             message.set_signal_flag(thinger_message::AUTH);
             message.resources().add(username).add(device_id).add(credential);
+
+            /** temporal fix for old production server **/
+            if(!send_message(message)) return false;
+            thinger_message response;
+            return read_message(response) && response.get_signal_flag() == thinger_message::REQUEST_OK;
+
+            /*
+             *
+             use this in new server
             return send_message_with_ack(message);
+             */
         }
 
     public:
