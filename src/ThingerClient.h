@@ -403,7 +403,6 @@ public:
     void handle(){
         if(handle_connection()){
             synchronized(size_t available = client_.available();)
-            //THINGER_DEBUG_VALUE("THINGER", "Available bytes: ", available);
             #ifdef _DEBUG_
             if(available>0){
                 THINGER_DEBUG_VALUE("THINGER", "Available bytes: ", available);
