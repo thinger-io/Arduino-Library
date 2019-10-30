@@ -135,6 +135,7 @@ protected:
              * Without a small delays between readings, the MKRGSM1400 seems to miss information, i.e, reading a byte
              * after a byte. Maybe it is related to UART communication.
              */
+            delay(50);
 #ifdef ARDUINO_SAMD_MKRGSM1400
             delay(2);
 #endif
@@ -402,6 +403,7 @@ public:
     void handle(){
         if(handle_connection()){
             synchronized(size_t available = client_.available();)
+            //THINGER_DEBUG_VALUE("THINGER", "Available bytes: ", available);
             #ifdef _DEBUG_
             if(available>0){
                 THINGER_DEBUG_VALUE("THINGER", "Available bytes: ", available);
