@@ -299,6 +299,7 @@ namespace thinger{
             thinger_message message;
             message.set_stream_id(resource.get_stream_id());
             message.set_signal_flag(type);
+            // TODO modify and update servers to support resource.fill_output(message.get_data());
             resource.fill_api_io(message.get_data());
             send_message(message);
         }
