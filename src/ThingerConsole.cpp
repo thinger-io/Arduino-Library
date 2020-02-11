@@ -2,7 +2,7 @@
 
 ThingerConsole::ThingerConsole(ThingerClient& client) :
     client_(client),
-    resource_(client["$"]["console"]),
+    resource_(client["$console"]),
     index_(0)
 {
     buffer_[BUFFER_SIZE] = 0;
