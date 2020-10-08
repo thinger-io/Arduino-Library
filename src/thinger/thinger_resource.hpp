@@ -29,7 +29,9 @@
 #include "thinger_message.hpp"
 
 #ifdef __has_include
-#  if __has_include(<functional>) && !defined(ARDUINO)
+#  if __has_include(<functional>)
+#    undef min
+#    undef max
 #    include <functional>
 #    define THINGER_USE_FUNCTIONAL
 #  endif
