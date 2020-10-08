@@ -54,8 +54,7 @@ public:
     enum access_type{
         PRIVATE     = 0,
         PROTECTED   = 1,
-        PUBLIC      = 2,
-        INTERNAL    = 3
+        PUBLIC      = 2
     };
 
     static unsigned int& get_streaming_counter(){
