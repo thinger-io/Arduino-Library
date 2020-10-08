@@ -503,7 +503,7 @@ inline void inverted_digital_pin(protoson::pson& in, int pin, bool& current_stat
  */
 
 #ifndef ESP32
-void analog_pin(protoson::pson& in, int pin){
+inline void analog_pin(protoson::pson& in, int pin){
     static int current = in;
     if(in.is_empty()){
         in = current;
