@@ -570,7 +570,7 @@ namespace thinger{
                             }else{
                                 thing_resource->handle_request(request, response);
                                 // stream enabled over a resource input -> notify the current state
-                                if(thing_resource->stream_enabled() && thing_resource->get_io_type()==thinger_resource::pson_in){
+                                if(thing_resource->stream_enabled() && (thing_resource->get_io_type()==thinger_resource::pson_in || thing_resource->get_io_type()==thinger_resource::pson_in_pson_out)){
                                     // send normal response
                                     send_message(response);
                                     // stream the event to notify the change

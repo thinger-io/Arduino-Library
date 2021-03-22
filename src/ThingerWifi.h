@@ -43,7 +43,7 @@ public:
 protected:
 
     virtual bool network_connected(){
-        return (WiFi.status() == WL_CONNECTED) && !(WiFi.localIP() == INADDR_NONE);
+        return (WiFi.status() == WL_CONNECTED) && !(WiFi.localIP() == (IPAddress)INADDR_NONE);
     }
 
     virtual bool connect_network(){
@@ -69,7 +69,7 @@ protected:
         THINGER_DEBUG("NETWORK", "Connected to WiFi!");
         wifi_timeout = millis();
         THINGER_DEBUG("NETWORK", "Getting IP Address...");
-        while (WiFi.localIP() == INADDR_NONE) {
+        while (WiFi.localIP() == (IPAddress)INADDR_NONE) {
             if(millis() - wifi_timeout > 30000) return false;
             #ifdef ESP8266
             yield();

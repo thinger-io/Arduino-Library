@@ -327,6 +327,9 @@ protected:
             case SOCKET_DISCONNECTED:
                 THINGER_DEBUG("_SOCKET", "Is now closed!");
                 break;
+            case SOCKET_ERROR:
+                THINGER_DEBUG("_SOCKET", "Socket Error");
+                break;
             case SOCKET_TIMEOUT:
                 THINGER_DEBUG("_SOCKET", "Timeout!");
                 break;
