@@ -82,8 +82,12 @@ class ThingerWebConfig : public ThingerClient {
 
 public:
     ThingerWebConfig(const char* user="", const char* device="", const char* credential="") :
-        ThingerClient(client_, user_, device_, credential_), custom_params_(0),
-        config_callback_(NULL), wifi_callback_(NULL), captive_portal_callback_(NULL)
+        ThingerClient(client_, user_, device_, credential_), 
+        x509(get_root_ca()),
+        custom_params_(0),
+        config_callback_(NULL), 
+        wifi_callback_(NULL), 
+        captive_portal_callback_(NULL)
     {
         strcpy(user_, user);
         strcpy(device_, device);
@@ -114,17 +118,17 @@ public:
     }
 
 
+
 #ifndef _DISABLE_TLS_
 protected:
     virtual bool connect_socket(){
 
-        // since CORE 2.5.0, now it is used BearSSL by default
-#ifndef _VALIDATE_SSL_CERTIFICATE_
+    // since CORE 2.5.0, now it is used BearSSL by default
+#ifdef THINGER_INSECURE_SSL
         client_.setInsecure();
-        THINGER_DEBUG("SSL/TLS", "Warning: use #define _VALIDATE_SSL_CERTIFICATE_ if certificate validation is required")
+        THINGER_DEBUG("SSL/TLS", "Warning: TLS/SSL certificate will not be checked!")
 #else
-        client_.setFingerprint(THINGER_TLS_FINGERPRINT);
-        THINGER_DEBUG_VALUE("SSL/TLS", "SHA-1 certificate fingerprint: ", THINGER_TLS_FINGERPRINT)
+        client_.setTrustAnchors(&x509);
 #endif
         return client_.connect(get_host(), THINGER_SSL_PORT);
     }
@@ -297,6 +301,7 @@ private:
     char user_[40];
     char device_[40];
     char credential_[40];
+    BearSSL::X509List x509;
     WiFiManagerParameter *parameters_[MAX_ADDITIONAL_PARAMETERS] ;
     int custom_params_;
     void (*config_callback_)(pson &);

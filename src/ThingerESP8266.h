@@ -35,9 +35,10 @@ class ThingerESP8266 : public ThingerWifiClient<WiFiClient>{
 
 public:
     ThingerESP8266(const char* user, const char* device, const char* device_credential) :
-            ThingerWifiClient(user, device, device_credential)
+            ThingerWifiClient(user, device, device_credential),
+            x509(get_root_ca())
     {
-
+        
     }
 
     ~ThingerESP8266(){
@@ -49,12 +50,11 @@ protected:
     virtual bool connect_socket(){
 
     // since CORE 2.5.0, now it is used BearSSL by default
-#ifndef _VALIDATE_SSL_CERTIFICATE_
+#ifdef THINGER_INSECURE_SSL
         client_.setInsecure();
-        THINGER_DEBUG("SSL/TLS", "Warning: use #define _VALIDATE_SSL_CERTIFICATE_ if certificate validation is required")
+        THINGER_DEBUG("SSL/TLS", "Warning: TLS/SSL certificate will not be checked!")
 #else
-        client_.setFingerprint(THINGER_TLS_FINGERPRINT);
-        THINGER_DEBUG_VALUE("SSL/TLS", "SHA-1 certificate fingerprint: ", THINGER_TLS_FINGERPRINT)
+        client_.setTrustAnchors(&x509);
 #endif
         return client_.connect(get_host(), THINGER_SSL_PORT);
     }
@@ -63,6 +63,9 @@ protected:
         return true;
     }
 #endif
+
+    private:
+        BearSSL::X509List x509;
 
 };
 

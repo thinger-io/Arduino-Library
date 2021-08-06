@@ -41,6 +41,25 @@ public:
     ~ThingerESP32(){
 
     }
+
+    #ifndef _DISABLE_TLS_
+protected:
+    virtual bool connect_socket(){
+
+#ifdef THINGER_INSECURE_SSL
+        client_.setInsecure();
+        THINGER_DEBUG("SSL/TLS", "Warning: TLS/SSL certificate will not be checked!")
+#else
+        client_.setCACert(get_root_ca());
+#endif
+        return client_.connect(get_host(), THINGER_SSL_PORT);
+    }
+
+    virtual bool secure_connection(){
+        return true;
+    }
+#endif
+
 };
 
 #endif
