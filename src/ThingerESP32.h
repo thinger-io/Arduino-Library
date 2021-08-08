@@ -44,7 +44,7 @@ public:
 
     #ifndef _DISABLE_TLS_
 protected:
-    virtual bool connect_socket(){
+    bool connect_socket() override{
 
 #ifdef THINGER_INSECURE_SSL
         client_.setInsecure();
@@ -55,10 +55,14 @@ protected:
         return client_.connect(get_host(), THINGER_SSL_PORT);
     }
 
-    virtual bool secure_connection(){
+    bool secure_connection() override{
         return true;
     }
 #endif
+
+    void run_reboot() override{
+        ESP.restart();
+    }
 
 };
 
