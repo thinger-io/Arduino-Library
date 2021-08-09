@@ -25,15 +25,15 @@ public:
             const char* firmware   = in["firmware"];
             const char* version    = in["version"];
             size_t size            = in["size"];
-            size_t compressed_size = in["compressed_size"];
+            size_t chunk_size      = in["chunk_size"];
 
             THINGER_DEBUG("OTA", "Received OTA request...");
             THINGER_DEBUG_VALUE("OTA", "Firmware: ", firmware);
             THINGER_DEBUG_VALUE("OTA", "Firmware Size: ", size);
-            THINGER_DEBUG_VALUE("OTA", "Compressed Size: ", compressed_size);
+            THINGER_DEBUG_VALUE("OTA", "Chunk Size: ", chunk_size);
             THINGER_DEBUG("OTA", "Initializing update...");
 
-            bool init = begin_ota(firmware, version, size, compressed_size);
+            bool init = begin_ota(firmware, version, size, in, out);
 
             THINGER_DEBUG_VALUE("OTA", "Init OK: ", init);
             out["success"] = init;
@@ -61,7 +61,7 @@ public:
 
             // write buffer
             auto start = millis();
-            auto success = write_ota((const char*)buffer, size);
+            auto success = write_ota((uint8_t*)buffer, size, out);
             auto stop = millis();
 
             THINGER_DEBUG_VALUE("OTA", "Wrote OK: ", success);
@@ -72,8 +72,8 @@ public:
 
         client["$ota"]["end"] >> [&](pson& out){
             THINGER_DEBUG("OTA", "Finishing...");
-            bool result = end_ota();
-            THINGER_DEBUG_VALUE("OTA", "Update OK: ", result);
+            bool result = end_ota(out);
+            THINGER_DEBUG_VALUE("OTA", "Update OK?: ", result);
             out["success"] = result;
         };
 
@@ -87,8 +87,6 @@ public:
 
     }
 
-public:
-
     void set_block_size(size_t size){
         block_size_ = size;
     }
@@ -98,15 +96,15 @@ public:
     }
 
     // methods to be implemented by underlying device
-    virtual bool begin_ota(const char* firmware, const char* version, size_t bytes_size, size_t compressed_size) = 0;
-    virtual bool write_ota(const char* buffer, size_t bytes) = 0;
+    virtual bool begin_ota(const char* firmware, const char* version, size_t bytes_size, pson& options, pson& state) = 0;
+    virtual bool write_ota(uint8_t* buffer, size_t bytes, pson& state) = 0;
     virtual size_t remaining() = 0;
-    virtual bool end_ota() = 0;
+    virtual bool end_ota(pson& state) = 0;
 
 protected:
     virtual void fill_options(pson& options) = 0;
     bool enabled_ = true;
-    uint16_t block_size_ = 32768;
+    uint16_t block_size_ = 8192;
 
 };
 
