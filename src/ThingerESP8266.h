@@ -27,6 +27,7 @@
 #include <ESP8266WiFi.h>
 #include "ThingerWifi.h"
 
+
 #ifndef _DISABLE_TLS_
 class ThingerESP8266 : public ThingerWifiClient<WiFiClientSecure>{
 #else
@@ -63,6 +64,10 @@ protected:
         return true;
     }
 #endif
+
+    void run_reboot() override{
+        ESP.restart();
+    }
 
     private:
         BearSSL::X509List x509;
