@@ -14,6 +14,9 @@ ThingerESP32OTA ota(thing);
 void setup() {
   pinMode(16, OUTPUT);
 
+  // example of fixed ip address (by default it uses dhcp)
+  ETH.config("192.168.1.55", "192.168.1.1", "255.255.255.0", "8.8.8.8", "8.8.4.4");
+
   thing.add_wifi(SSID, SSID_PASSWORD);
 
   // digital pin control example (i.e. turning on/off a light, a relay, configuring a parameter, etc)
