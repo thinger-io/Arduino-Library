@@ -37,12 +37,12 @@
 
 #ifdef THINGER_FREE_RTOS_MULTITASK
     #define THINGER_MULTITASK
-    #define synchronized(code)  \
+    #define th_synchronized(code)  \
         lock();                 \
         code                    \
         unlock();
 #else
-    #define synchronized(code)  \
+    #define th_synchronized(code)  \
         code
 #endif
 
@@ -337,7 +337,7 @@ namespace thinger{
             // handle input
             if(bytes_available){
                 thinger_message message;
-                synchronized(bool result = read_message(message)==MESSAGE;)
+                th_synchronized(bool result = read_message(message)==MESSAGE;)
                 if(result) handle_request_received(message);
             }
 
@@ -456,7 +456,7 @@ namespace thinger{
          * @return true if the message was written to the socket
          */
         bool send_message(thinger_message& message){
-            synchronized(bool result = write_message(message);)
+            th_synchronized(bool result = write_message(message);)
             return result;
         }
 
@@ -468,7 +468,7 @@ namespace thinger{
          */
         bool send_message_with_ack(thinger_message& message, bool wait_ack=true){
             if(wait_ack) message.set_random_stream_id();
-            synchronized(bool result = write_message(message) && (!wait_ack || wait_response(message));)
+            th_synchronized(bool result = write_message(message) && (!wait_ack || wait_response(message));)
             return result;
         }
 
@@ -479,7 +479,7 @@ namespace thinger{
          * @return true if the message was acknowledged by the server.
          */
         bool send_message(thinger_message& message, protoson::pson& data){
-            synchronized(bool result = write_message(message) && wait_response(message, &data););
+            th_synchronized(bool result = write_message(message) && wait_response(message, &data););
             return result;
         }
 
@@ -489,7 +489,7 @@ namespace thinger{
          */
         bool send_keep_alive(){
             bool result = false;
-            synchronized(
+            th_synchronized(
                 encoder.pb_encode_varint(KEEP_ALIVE);
                 encoder.pb_encode_varint(0);
                 result = write(NULL, 0, true);

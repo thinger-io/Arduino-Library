@@ -276,7 +276,7 @@ protected:
     bool client_write(const char* buffer, size_t size){
 #ifdef _DEBUG_
         Serial.print(F("[THINGER] Writing bytes: "));
-            Serial.print(size);
+        Serial.print(size);
 #endif
 
         size_t written = client_.write((uint8_t*) buffer, size);
@@ -336,7 +336,7 @@ protected:
     }
 
     virtual bool connect_socket(){
-        synchronized(bool result=client_.connect(host_, secure_connection() ? THINGER_SSL_PORT : THINGER_PORT);)
+        th_synchronized(bool result=client_.connect(host_, secure_connection() ? THINGER_SSL_PORT : THINGER_PORT);)
         return result;
     }
 
@@ -478,7 +478,7 @@ public:
 
     void handle(){
         if(handle_connection()){
-            synchronized(size_t available = client_.available();)
+            th_synchronized(size_t available = client_.available();)
             #ifdef _DEBUG_
             if(available>0){
                 THINGER_DEBUG_VALUE("THINGER", "Available bytes: ", available);
@@ -499,7 +499,7 @@ public:
     }
 
     bool is_connected(){
-        synchronized(bool result = client_.connected();)
+        th_synchronized(bool result = client_.connected();)
         return result;
     }
 

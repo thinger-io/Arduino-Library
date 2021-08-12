@@ -21,66 +21,57 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#ifndef THINGER_MKR_GSM_H
-#define THINGER_MKR_GSM_H
+#ifndef THINGER_MKRNB_H
+#define THINGER_MKRNB_H
 
-#include <MKRGSM.h>
+#include <MKRNB.h>
 
 #define GPRS_CONNECTION_TIMEOUT 30000
-#define MODEM_RESPONSE_TIMEOUT 30000
 
 #include "ThingerClient.h"
 
-class ThingerMKRGSM : public ThingerClient {
+class ThingerMKRNB : public ThingerClient {
 
 public:
-    ThingerMKRGSM(const char* user, const char* device, const char* device_credential) :
+    ThingerMKRNB(const char* user, const char* device, const char* device_credential) :
         ThingerClient(client_, user, device, device_credential)
     {
         //MODEM.debug();
     }
 
-    ~ThingerMKRGSM(){
+    ~ThingerMKRNB(){
 
     }
 
 protected:
 
     virtual bool network_connected(){
-        return gsmConnected_ && gprsConnected_;
+        return nbConnected_ && gprsConnected_;
     }
 
     virtual bool connect_network(){
-        if(!gsmConnected_){
-            THINGER_DEBUG("SIMCARD", "Initializing GSM Network!")
-            gsmConnected_ = gsmAccess_.begin(pin_, true, true) == GSM_READY;
-            THINGER_DEBUG_VALUE("SIMCARD", "GSM Network: ", gsmConnected_)
+        if(!nbConnected_){
+            THINGER_DEBUG("__NBIOT", "Initializing NB Network...")
+            THINGER_DEBUG_VALUE("__NBIOT", "Connecting to APN: ", apn_)
+            THINGER_DEBUG_VALUE("__NBIOT", "APN username: ", username_)
+            THINGER_DEBUG_VALUE("__NBIOT", "APN password: ", password_)
+            nbConnected_ = nbAccess_.begin(pin_, apn_, username_, password_, false, true) == NB_READY;
+            THINGER_DEBUG_VALUE("__NBIOT", "NB Network: ", nbConnected_)
         }
 
-        if(gsmConnected_){
-            if(apn_==NULL){
-                THINGER_DEBUG("___GPRS", "APN was not set!")
-                return false;
-            }
-            THINGER_DEBUG_VALUE("___GPRS", "Connecting to APN: ", apn_)
-            THINGER_DEBUG_VALUE("___GPRS", "APN username: ", username_)
-            THINGER_DEBUG_VALUE("___GPRS", "APN password: ", password_)
-            unsigned long timeout = millis();
+        if(nbConnected_){
             // try to attach GPRS
-            gprs_.attachGPRS(apn_, username_, password_, false);
-            while(gprs_.ready() == 0) {
-                if(millis() - timeout > GPRS_CONNECTION_TIMEOUT){
-                    THINGER_DEBUG("___GPRS", "Cannot establish connection with APN!")
-                    return false;
-                }
-                delay(100);
+            THINGER_DEBUG("___GPRS", "Initializing GPRS Connection...")
+            gprs_.setTimeout(GPRS_CONNECTION_TIMEOUT);
+            gprsConnected_ = gprs_.attachGPRS(true) == GPRS_READY;
+            THINGER_DEBUG_VALUE("___GPRS", "GPRS Connection: ", gprsConnected_);
+            if(gprsConnected_){
+                THINGER_DEBUG_VALUE("NETWORK", "Got IP Address: ", gprs_.getIPAddress())
             }
-            gprsConnected_ = true;
-            THINGER_DEBUG("___GPRS", "APN Connection suceed!")
-            THINGER_DEBUG_VALUE("NETWORK", "Got IP Address: ", gprs_.getIPAddress());
+            
         }
 
-        return gsmConnected_ && gprsConnected_;
+        return nbConnected_ && gprsConnected_;
     }
 
 public:
@@ -100,8 +91,13 @@ public:
         return gprs_;
     }
 
-    GSM& getGSM(){
-        return gsmAccess_;
+    NB& getNB(){
+        return nbAccess_;
+    }
+
+    void run_reboot() override{
+       delay(100);
+       NVIC_SystemReset();
     }
 
 protected:
@@ -109,17 +105,17 @@ protected:
     const char * apn_       = nullptr;
     const char * username_  = nullptr;
     const char * password_  = nullptr;
-    bool gsmConnected_      = false;
+    bool nbConnected_       = false;
     bool gprsConnected_     = false;
 
 #ifndef _DISABLE_TLS_
-    GSMSSLClient client_;
+    NBSSLClient client_;
 #else
-    GSMClient client_;
+    NBClient client_;
 #endif
 
     GPRS gprs_;
-    GSM gsmAccess_;
+    NB nbAccess_;
 };
 
 #endif
