@@ -1,12 +1,14 @@
-#include <ThingerSmartConfig.h>
+#define THINGER_SERIAL_DEBUG
 
-#define USERNAME "your_user_name"
-#define DEVICE_ID "your_device_id"
-#define DEVICE_CREDENTIAL "your_device_credential"
+#include <ThingerSmartConfig.h>
+#include "arduino_secrets.h"
 
 ThingerSmartConfig thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
 
 void setup() {
+  // open serial for debugging
+  Serial.begin(115200);
+
   pinMode(LED_BUILTIN, OUTPUT);
 
   // digital pin control example (i.e. turning on/off a light, a relay, configuring a parameter, etc)

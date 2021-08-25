@@ -1,12 +1,14 @@
-#include <ThingerEthernet.h>
+#define THINGER_SERIAL_DEBUG
 
-#define USERNAME "your_username"
-#define DEVICE_ID "your_device_id"
-#define DEVICE_CREDENTIAL "your_device_credential"
+#include <ThingerEthernet.h>
+#include "arduino_secrets.h"
 
 ThingerEthernet thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
 
 void setup() {
+  // open serial for debugging
+  Serial.begin(115200);
+
   pinMode(2, OUTPUT);
 
   // pin control example (i.e. turning on/off a light, a relay, etc)

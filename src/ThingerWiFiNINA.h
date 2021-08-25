@@ -31,8 +31,10 @@ class ThingerWiFiNINA : public ThingerWifiClient<WiFiClient> {
 
 public:
     ThingerWiFiNINA(const char* user, const char* device, const char* device_credential) :
-            ThingerWifiClient(user, device, device_credential)
-    {}
+        ThingerWifiClient(user, device, device_credential)
+    {
+
+    }
 
     ~ThingerWiFiNINA(){
 
@@ -44,7 +46,6 @@ protected:
         return client_.connectSSL(get_host(), THINGER_SSL_PORT);
     }
 #endif
-
 };
 
 #endif

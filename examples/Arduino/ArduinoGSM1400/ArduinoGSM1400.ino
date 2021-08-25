@@ -1,18 +1,12 @@
+#define THINGER_SERIAL_DEBUG
+
 #include <ThingerMKRGSM.h>
-
-#define USERNAME "your_user_name"
-#define DEVICE_ID "your_device_id"
-#define DEVICE_CREDENTIAL "your_device_credential"
-
-#define PIN_NUMBER "your_pin"
-
-#define GPRS_APN "your_apn_name"
-#define GPRS_LOGIN "your_gprs_login"
-#define GPRS_PASSWORD "your_gprs_password"
+#include "arduino_secrets.h"
 
 ThingerMKRGSM thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
 
 void setup() {
+  // open serial for debugging
   Serial.begin(115200);
 
   // optional set pin number

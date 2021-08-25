@@ -25,8 +25,8 @@
 #define THINGER_ESP8266_H
 
 #include <ESP8266WiFi.h>
+#include <time.h>
 #include "ThingerWifi.h"
-
 
 #ifndef _DISABLE_TLS_
 class ThingerESP8266 : public ThingerWifiClient<WiFiClientSecure>{
@@ -36,8 +36,12 @@ class ThingerESP8266 : public ThingerWifiClient<WiFiClient>{
 
 public:
     ThingerESP8266(const char* user, const char* device, const char* device_credential) :
-            ThingerWifiClient(user, device, device_credential),
-            x509(get_root_ca())
+            ThingerWifiClient(user, device, device_credential)
+#ifndef _DISABLE_TLS_
+#ifndef THINGER_INSECURE_SSL
+        ,x509(get_root_ca())
+#endif
+#endif
     {
         
     }
@@ -48,7 +52,34 @@ public:
 
 #ifndef _DISABLE_TLS_
 protected:
-    virtual bool connect_socket(){
+
+#ifndef THINGER_INSECURE_SSL
+    bool setClock() {
+        configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+        THINGER_DEBUG("NTP_SYN", "Waiting for NTP time sync...");
+        unsigned long ntp_timeout = millis();
+        while (time(nullptr) < 8 * 3600 * 2) {
+            if(millis() - ntp_timeout > 30000){
+                THINGER_DEBUG("NTP_SYN", "Cannot sync time!");
+                return false;
+            }
+            delay(500);
+        }
+        #ifdef _DEBUG_
+        time_t now = time(nullptr);
+        char* time = ctime(&now);
+        time[strlen(time)-1]=0;
+        THINGER_DEBUG_VALUE("NTP_SYN", "Current time (UTC): ", time);
+        #endif
+        return true;
+    }
+
+    bool connect_network() override{
+        return ThingerWifiClient<WiFiClientSecure>::connect_network() && setClock();
+    }
+#endif
+
+    bool connect_socket() override{
 
     // since CORE 2.5.0, now it is used BearSSL by default
 #ifdef THINGER_INSECURE_SSL
@@ -60,17 +91,16 @@ protected:
         return client_.connect(get_host(), THINGER_SSL_PORT);
     }
 
-    virtual bool secure_connection(){
+    bool secure_connection() override{
         return true;
     }
-#endif
 
-    void run_reboot() override{
-        ESP.restart();
-    }
-
+#ifndef THINGER_INSECURE_SSL
     private:
         BearSSL::X509List x509;
+#endif
+
+#endif
 
 };
 

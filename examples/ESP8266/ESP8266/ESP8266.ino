@@ -1,17 +1,20 @@
+#define THINGER_SERIAL_DEBUG
+
 #include <ThingerESP8266.h>
-
-#define USERNAME "your_user_name"
-#define DEVICE_ID "your_device_id"
-#define DEVICE_CREDENTIAL "your_device_credential"
-
-#define SSID "your_wifi_ssid"
-#define SSID_PASSWORD "your_wifi_ssid_password"
+#include <ThingerESP8266OTA.h>
+#include "arduino_secrets.h"
 
 ThingerESP8266 thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
+ThingerESP8266 ota(thing);
 
 void setup() {
+  // open serial for monitoring
+  Serial.begin(115200);
+
+  // set builtin led as output
   pinMode(LED_BUILTIN, OUTPUT);
 
+  // add WiFi credentials
   thing.add_wifi(SSID, SSID_PASSWORD);
 
   // digital pin control example (i.e. turning on/off a light, a relay, configuring a parameter, etc)

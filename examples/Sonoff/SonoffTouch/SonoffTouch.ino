@@ -1,6 +1,6 @@
 #define THINGER_DEVICE_SSID "SonoffTouch"
 #define THINGER_DEVICE_SSID_PSWD "SonoffTouch"
-#define _DEBUG_
+#define THINGER_SERIAL_DEBUG
 
 // Requires WifiManager from Library Manager or https://github.com/tzapu/WiFiManager
 #include <ThingerWebConfig.h>

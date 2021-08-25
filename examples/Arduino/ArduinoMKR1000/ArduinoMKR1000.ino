@@ -1,15 +1,17 @@
+#define THINGER_SERIAL_DEBUG
+
 #include <ThingerWifi101.h>
+#include "arduino_secrets.h"
 
-#define USERNAME "your_user_name"
-#define DEVICE_ID "your_device_id"
-#define DEVICE_CREDENTIAL "your_device_credential"
-
-#define SSID "your_wifi_ssid"
-#define SSID_PASSWORD "your_wifi_ssid_password"
+// cannot connect? Update WiFi101 firmware and add iot.thinger.io SSL Certificate
+// https://support.arduino.cc/hc/en-us/articles/360016119219
 
 ThingerWifi101 thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
 
 void setup() {
+  // open serial for debugging
+  Serial.begin(115200);
+
   // configure wifi network
   thing.add_wifi(SSID, SSID_PASSWORD);
 

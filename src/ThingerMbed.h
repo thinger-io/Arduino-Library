@@ -21,42 +21,35 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#ifndef THINGER_ESP32_H
-#define THINGER_ESP32_H
+#ifndef THINGER_MBED_H
+#define THINGER_MBED_H
 
-#include <WiFiClientSecure.h>
+#include <WiFi.h>
 #include "ThingerWifi.h"
 
 #ifndef _DISABLE_TLS_
-class ThingerESP32 : public ThingerWifiClient<WiFiClientSecure>{
+#include <WiFiSSLClient.h>
+class ThingerMbed : public ThingerWifiClient<WiFiSSLClient>{
 #else
-class ThingerESP32 : public ThingerWifiClient<WiFiClient>{
+#include <WiFiClient.h>
+class ThingerMbed : public ThingerWifiClient<WiFiClient>{
 #endif
 
 public:
-    ThingerESP32(const char* user, const char* device, const char* device_credential) :
-            ThingerWifiClient(user, device, device_credential)
-    {}
-
-    ~ThingerESP32(){
+    ThingerMbed(const char* user, const char* device, const char* device_credential) :
+        ThingerWifiClient(user, device, device_credential)
+    {
 
     }
 
-    #ifndef _DISABLE_TLS_
+    ~ThingerMbed(){
+
+    }
+
+#ifndef _DISABLE_TLS_
 protected:
     bool connect_socket() override{
-
-#ifdef THINGER_INSECURE_SSL
-        client_.setInsecure();
-        THINGER_DEBUG("SSL/TLS", "Warning: TLS/SSL certificate will not be checked!")
-#else
-        client_.setCACert(get_root_ca());
-#endif
-        return client_.connect(get_host(), THINGER_SSL_PORT);
-    }
-
-    bool secure_connection() override{
-        return true;
+        return client_.connectSSL(get_host(), THINGER_SSL_PORT);
     }
 #endif
 

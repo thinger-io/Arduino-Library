@@ -1,10 +1,15 @@
 #define THINGER_SERIAL_DEBUG
+
 #include <ThingerMKRNB.h>
+#include <ThingerMKRNBOTA.h>
 #include "arduino_secrets.h"
 
 ThingerMKRNB thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
+// OTA seems to not work if no reset button pressed
+ThingerMKRNBOTA ota(thing);
 
 void setup() {
+  // enable serial for debugging
   Serial.begin(115200);
 
   // optional set pin number

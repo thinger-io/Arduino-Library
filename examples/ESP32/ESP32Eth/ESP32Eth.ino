@@ -13,10 +13,7 @@
 #define THINGER_SERIAL_DEBUG 
 
 #include <ThingerESP32Eth.h>
-
-#define USERNAME "your_user_name"
-#define DEVICE_ID "your_device_id"
-#define DEVICE_CREDENTIAL "your_device_credential"
+#include "arduino_secrets.h"
 
 ThingerESP32Eth thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
 

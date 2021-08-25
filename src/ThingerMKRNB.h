@@ -24,10 +24,10 @@
 #ifndef THINGER_MKRNB_H
 #define THINGER_MKRNB_H
 
-#include <MKRNB.h>
 
 #define GPRS_CONNECTION_TIMEOUT 30000
 
+#include <MKRNB.h>
 #include "ThingerClient.h"
 
 class ThingerMKRNB : public ThingerClient {
@@ -95,11 +95,6 @@ public:
         return nbAccess_;
     }
 
-    void run_reboot() override{
-       delay(100);
-       NVIC_SystemReset();
-    }
-
 protected:
     const char * pin_       = nullptr;
     const char * apn_       = nullptr;
@@ -116,6 +111,7 @@ protected:
 
     GPRS gprs_;
     NB nbAccess_;
+
 };
 
 #endif

@@ -1,12 +1,15 @@
 #ifndef THINGER_MKRNBOTA_H
 #define THINGER_MKRNBOTA_H
 
+#define THINGER_OTA_MD5_VERIFICATION 1
+
 #include "ThingerOTA.h"
 #include <NBFileUtils.h>
-#include <SBU.cpp>
+#include <SBU.h>
 
 class ThingerMKRNBOTA : public ThingerOTA{
 
+    constexpr static const char* UPDATE_FILE_COMPRESSED = "UPDATE.BIN.LZSS";
     constexpr static const char* UPDATE_FILE = "UPDATE.BIN";
     constexpr static const char* UPDATE_FILE_OK = "UPDATE.OK";
 
@@ -21,46 +24,45 @@ public:
     virtual ~ThingerMKRNBOTA(){
 
     }
-    
-private:
-    size_t ota_remaining_ = 0;
-    char md5_checksum_[33];
 
 protected:
 
     void fill_options(pson& options) override{
-        // set esp8266 platform
+        // set mkrnb platform
         options["platform"] = "mkrnb";
 
-        // request a md5 checksum
-        options["checksum"] = "md5";
+        // set lzss compression
+        //options["compression"] = "lzss";
     }
 
     bool begin_ota(const char* firmware, const char* version, size_t size, pson& options, pson& state) override
     {
         if(file_utils_.begin(false)){
-            if(file_utils_.existFile(UPDATE_FILE)){
-                THINGER_DEBUG_VALUE("OTA", "Removing: ", UPDATE_FILE);
-                file_utils_.deleteFile(UPDATE_FILE);
-            }
-            if(file_utils_.existFile(UPDATE_FILE_OK)){
-                THINGER_DEBUG_VALUE("OTA", "Removing: ", UPDATE_FILE_OK);
-                file_utils_.deleteFile(UPDATE_FILE_OK);
-            }
-            ota_remaining_ = size;
+            reset_ota();
             return true;
         }
         return false;
     }
 
-    bool write_ota(uint8_t* buffer, size_t bytes, pson& state) override{
-        auto write = file_utils_.downloadFile(UPDATE_FILE, (const char*) buffer, bytes, true);
-        ota_remaining_ -= bytes;
-        return write==bytes;
+
+    bool reset_ota() override{
+        if(file_utils_.existFile(UPDATE_FILE)){
+            THINGER_DEBUG_VALUE("OTA", "Removing: ", UPDATE_FILE);
+            file_utils_.deleteFile(UPDATE_FILE);
+        }
+        if(file_utils_.existFile(UPDATE_FILE_OK)){
+            THINGER_DEBUG_VALUE("OTA", "Removing: ", UPDATE_FILE_OK);
+            file_utils_.deleteFile(UPDATE_FILE_OK);
+        }
+        if(file_utils_.existFile(UPDATE_FILE_COMPRESSED)){
+            THINGER_DEBUG_VALUE("OTA", "Removing: ", UPDATE_FILE_COMPRESSED);
+            file_utils_.deleteFile(UPDATE_FILE_COMPRESSED);
+        }
+        return true;
     }
 
-    size_t remaining() override{
-        return ota_remaining_;
+    bool write_ota(uint8_t* buffer, size_t bytes, pson& state) override{
+        return file_utils_.downloadFile(UPDATE_FILE, (const char*) buffer, bytes, true) == bytes;
     }
 
     bool end_ota(pson& state) override{
@@ -68,7 +70,6 @@ protected:
     }
 
 private:
-
     NBFileUtils file_utils_;
 };
 

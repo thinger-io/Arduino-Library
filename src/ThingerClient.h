@@ -348,7 +348,21 @@ protected:
 #endif
     }
 
-    virtual void run_reboot(){}
+    virtual void run_reboot(){
+        THINGER_DEBUG("THINGER", "Rebooting device...");
+        #if defined(ARDUINO_ARCH_MEGAAVR)
+        wdt_enable(WDT_PERIOD_8CLK_gc);
+        #elif defined(__AVR__)
+        wdt_enable(WDTO_15MS);
+        #elif defined(__arm__)
+        NVIC_SystemReset();
+        #elif defined(ESP8266) || defined(ESP32)
+        ESP.restart();
+        #else
+        #error "MCU reset procedure not implemented"
+        #endif
+        for (;;) {}
+    }
 
     enum THINGER_STATE{
         NETWORK_CONNECTING,

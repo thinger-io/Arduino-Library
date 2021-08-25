@@ -1,15 +1,16 @@
+#define THINGER_SERIAL_DEBUG
+
 #include <ThingerESP32.h>
-
-#define USERNAME "your_user_name"
-#define DEVICE_ID "your_device_id"
-#define DEVICE_CREDENTIAL "your_device_credential"
-
-#define SSID "your_wifi_ssid"
-#define SSID_PASSWORD "your_wifi_ssid_password"
+#include <ThingerESP32OTA.h>
+#include "arduino_secrets.h"
 
 ThingerESP32 thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
+ThingerESP32OTA ota(thing);
 
 void setup() {
+  // open serial for debugging
+  Serial.begin(115200);
+
   pinMode(16, OUTPUT);
 
   thing.add_wifi(SSID, SSID_PASSWORD);
