@@ -410,6 +410,7 @@ namespace protoson {
                     return true;
                 case empty:
                     field_type_ = empty_bytes;
+                    return false;
                 default:
                     return false;
             }
@@ -442,6 +443,7 @@ namespace protoson {
                     return (const char*) value_;
                 case empty:
                     field_type_ = empty_string;
+                    return "";
                 default:
                     return "";
             }
@@ -457,8 +459,9 @@ namespace protoson {
                     return true;
                 case empty:
                     field_type_ = false_field;
+                    return false;
                 default:
-                    return 0;
+                    return false;
             }
         }
 
@@ -526,6 +529,7 @@ namespace protoson {
                     return -pb_decode_varint();
                 case empty:
                     field_type_ = zero_field;
+                    return 0;
                 default:
                     return 0;
             }
@@ -878,6 +882,7 @@ namespace protoson {
                         if(value.allocate<pson_array>()){
                             return decode(*(pson_array*) value.get_value(), size);
                         }
+                        return false;
                     default:
                         return false;
                 }
