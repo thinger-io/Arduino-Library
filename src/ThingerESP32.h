@@ -24,18 +24,33 @@
 #ifndef THINGER_ESP32_H
 #define THINGER_ESP32_H
 
+#ifdef THINGER_FREE_RTOS
+#include "ThingerESP32FreeRTOS.h"
+#endif
+
 #include <WiFiClientSecure.h>
 #include "ThingerWifi.h"
 
-#ifndef _DISABLE_TLS_
-class ThingerESP32 : public ThingerWifiClient<WiFiClientSecure>{
+#ifdef _DISABLE_TLS_
+typedef WiFiClient ESP32Client;
 #else
-class ThingerESP32 : public ThingerWifiClient<WiFiClient>{
+typedef WiFiClientSecure ESP32Client;
 #endif
+
+class ThingerESP32 : public ThingerWifiClient<ESP32Client>
+
+#ifdef THINGER_FREE_RTOS
+,public ThingerESP32FreeRTOS
+#endif
+
+{
 
 public:
     ThingerESP32(const char* user, const char* device, const char* device_credential) :
             ThingerWifiClient(user, device, device_credential)
+            #ifdef THINGER_FREE_RTOS
+            ,ThingerESP32FreeRTOS(static_cast<ThingerClient&>(*this))
+            #endif
     {}
 
     ~ThingerESP32(){

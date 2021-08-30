@@ -4,14 +4,27 @@
 // TODO ESP32 TROUGHT ETHERNET DOES NOT SUPPORT SSL/TLS CONNECTIONS
 #define _DISABLE_TLS_
 
+#ifdef THINGER_FREE_RTOS
+#include "ThingerESP32FreeRTOS.h"
+#endif
+
 #include <ETH.h>
 #include <ThingerClient.h>
 #include <functional>
 
-class ThingerESP32Eth : public ThingerClient{
+class ThingerESP32Eth : public ThingerClient
+
+#ifdef THINGER_FREE_RTOS
+,public ThingerESP32FreeRTOS
+#endif
+
+{
 public:
     ThingerESP32Eth(const char* user, const char* device, const char* device_credential) :
             ThingerClient(client_, user, device, device_credential)
+            #ifdef THINGER_FREE_RTOS
+            ,ThingerESP32FreeRTOS(static_cast<ThingerClient&>(*this))
+            #endif
     {
         
          WiFi.onEvent([](WiFiEvent_t event){
@@ -83,7 +96,6 @@ protected:
                     THINGER_DEBUG("NETWORK", "Cannot set provided IP configuration");
                 }
             }
-            
         }
         return network_connected();
     }
