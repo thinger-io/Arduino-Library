@@ -24,34 +24,71 @@
 #ifndef THINGER_MBED_H
 #define THINGER_MBED_H
 
+#include <mbed.h>
+
+// enable thinger library with multitask support
+#define THINGER_MULTITASK
+#define THINGER_MBED_MULTITASK
+
+// load WiFi library according to board
+#if defined(ARDUINO_NANO_RP2040_CONNECT)
+#include <WiFiNINA.h>
+#else
 #include <WiFi.h>
+#endif
+
+// load SSL non-SSL client implamentations
+#ifdef _DISABLE_TLS_
+#include <WiFiClient.h>
+typedef WiFiClient MBEDClient;
+#else
+#include <WiFiSSLClient.h>
+typedef WiFiSSLClient MBEDClient;
+#endif
+
 #include "ThingerWifi.h"
 
-#ifndef _DISABLE_TLS_
-#include <WiFiSSLClient.h>
-class ThingerMbed : public ThingerWifiClient<WiFiSSLClient>{
-#else
-#include <WiFiClient.h>
-class ThingerMbed : public ThingerWifiClient<WiFiClient>{
-#endif
+class ThingerMbed : public ThingerWifiClient<MBEDClient>{
 
 public:
     ThingerMbed(const char* user, const char* device, const char* device_credential) :
         ThingerWifiClient(user, device, device_credential)
     {
-
+        
     }
 
     ~ThingerMbed(){
 
     }
 
-#ifndef _DISABLE_TLS_
-protected:
-    bool connect_socket() override{
-        return client_.connectSSL(get_host(), THINGER_SSL_PORT);
+    bool start(){
+        if(running_) return false;
+        running_ = true;
+        thread_.start([this](){
+            THINGER_DEBUG("MBED_OS", "Starting Thinger.io task...")
+            while(running_){
+                rtos::ThisThread::yield();
+                this->handle();
+            }
+        });
+        return true;
     }
-#endif
+
+    bool stop(){
+        if(running_){
+            running_ = false;
+            thread_.join();
+        }
+        return true;
+    }
+
+    bool is_running(){
+        return running_;
+    }
+
+private:
+    rtos::Thread thread_;
+    bool running_ = false;
 
 };
 

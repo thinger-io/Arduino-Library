@@ -1,7 +1,6 @@
 #ifndef THINGER_OTA_H
 #define THINGER_OTA_H
 
-#define THINGER_DO_NOT_INIT_MEMORY_ALLOCATOR
 #include "ThingerClient.h"
 
 #if THINGER_OTA_MD5_VERIFICATION

@@ -35,8 +35,7 @@
 
 #define KEEP_ALIVE_MILLIS 60000
 
-#ifdef THINGER_FREE_RTOS_MULTITASK
-    #define THINGER_MULTITASK
+#ifdef THINGER_MULTITASK
     #define th_synchronized(code)  \
         lock();                 \
         code                    \
@@ -74,21 +73,16 @@ namespace thinger{
         bool keep_alive_response;
         thinger_map<thinger_resource> resources_;
 
-#ifdef THINGER_FREE_RTOS_MULTITASK
+#if defined(THINGER_FREE_RTOS_MULTITASK)
         SemaphoreHandle_t semaphore_;
+#elif defined(THINGER_MBED_MULTITASK)
+        rtos::Mutex mutex_;
 #endif
+
+
 
     protected:
 
-#ifdef THINGER_FREE_RTOS_MULTITASK
-        bool lock(){
-            return xSemaphoreTake(semaphore_, portMAX_DELAY);
-        }
-
-        bool unlock(){
-            return xSemaphoreGive(semaphore_);
-        }
-#endif
         /**
          * Can be override to start reconnection process
          */
@@ -123,6 +117,28 @@ namespace thinger{
         }
 
     public:
+
+#ifdef THINGER_MULTITASK
+#if defined(THINGER_FREE_RTOS_MULTITASK)
+        void lock(){
+            xSemaphoreTake(semaphore_, portMAX_DELAY);
+        }
+
+        void unlock(){
+            xSemaphoreGive(semaphore_);
+        }
+#elif defined(THINGER_MBED_MULTITASK)
+        void lock(){
+            mutex_.lock();
+        }
+
+        void unlock(){
+            mutex_.unlock();
+        }
+#else
+    #error "Thinger Multitask enabled but not framework defined"
+#endif
+#endif
 
         thinger_resource & operator[](const char* res){
             return resources_[res];
@@ -300,7 +316,7 @@ namespace thinger{
             message.set_stream_id(resource.get_stream_id());
             message.set_signal_flag(type);
             // TODO modify and update servers to support resource.fill_output(message.get_data());
-            resource.fill_api_io(message.get_data());
+            th_synchronized(resource.fill_api_io(message.get_data());)
             send_message(message);
         }
 
@@ -556,7 +572,7 @@ namespace thinger{
                                 }
                             // fll the api over the specified resource
                             }else{
-                                thing_resource->fill_api_io(response.get_data());
+                                th_synchronized(thing_resource->fill_api_io(response.get_data());)
                             }
 
                         // just want to interact with the resource itself...
@@ -568,7 +584,7 @@ namespace thinger{
 
                             // the resource is available, so, handle its i/o.
                             }else{
-                                thing_resource->handle_request(request, response);
+                                th_synchronized(thing_resource->handle_request(request, response);)
                                 // stream enabled over a resource input -> notify the current state
                                 if(thing_resource->stream_enabled() && (thing_resource->get_io_type()==thinger_resource::pson_in || thing_resource->get_io_type()==thinger_resource::pson_in_pson_out)){
                                     // send normal response

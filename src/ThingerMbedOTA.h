@@ -11,7 +11,6 @@
 #include <SFU.h>
 #include <FlashIAPBlockDevice.h>
 #include <FATFileSystem.h>
-#include <PluggableUSBMSD.h>
 
 #define SD_MOUNT_PATH           "ota"
 #define FULL_UPDATE_FILE_PATH   "/" SD_MOUNT_PATH "/" "UPDATE.BIN"
@@ -22,9 +21,7 @@ class ThingerMbedOTA : public ThingerOTA{
 public:
     ThingerMbedOTA(ThingerClient& client) : 
         ThingerOTA(client),
-        bd_(XIP_BASE + 0xF00000, 0x100000),
-        MassStorage(&bd_),
-        fs_("ota")
+        fs_(SD_MOUNT_PATH)
     {
         // initialize a default block size
         set_block_size(THINGER_OTA_CHUNK_SIZE);
@@ -46,6 +43,7 @@ protected:
 
     bool begin_ota(const char* firmware, const char* version, size_t size, pson& options, pson& state) override
     {
+        static FlashIAPBlockDevice bd_(XIP_BASE + 0xF00000, 0x100000);
         int err = fs_.mount(&bd_);
         if(err!=0){
             err = fs_.reformat(&bd_);
@@ -98,8 +96,6 @@ protected:
     }
 
 private:
-    FlashIAPBlockDevice bd_;
-    USBMSD MassStorage;
     mbed::FATFileSystem fs_;
     FILE *f = nullptr;
 
