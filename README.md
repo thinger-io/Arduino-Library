@@ -24,7 +24,7 @@ It supports multiple network interfaces like Ethernet, Wifi, and GSM. So you can
 * Texas Instruments CC3200
 * SeeedStudio LinkIt ONE (Both GPRS and WiFi)
 
-## OTA (Over the Internet))
+## OTA (Over the Internet)
 
 Some devices can be directly updated remotely over the Internet (OTA). Thinger.io provides a Visual Studio Code extension for the OTA process, from building the firmware, flashing over the Internet, to remotelly rebooting the device. More details [here](https://marketplace.visualstudio.com/items?itemName=thinger-io.thinger-io).
 
