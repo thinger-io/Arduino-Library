@@ -34,13 +34,13 @@ class ThingerTinyGSM : public ThingerClient {
 
 public:
     ThingerTinyGSM(const char* user, const char* device, const char* device_credential, Stream& serial) :
-            apn_(NULL),
-            user_(NULL),
-            password_(NULL),
-            pin_(NULL),
-            modem_(serial),
-            client_(modem_),
-            ThingerClient(client_, user, device, device_credential)
+        ThingerClient(client_, user, device, device_credential),
+        apn_(NULL),
+        user_(NULL),
+        password_(NULL),
+        pin_(NULL),
+        modem_(serial),
+        client_(modem_)
     {
     }
 
