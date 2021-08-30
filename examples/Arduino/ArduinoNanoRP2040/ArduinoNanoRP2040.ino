@@ -7,6 +7,9 @@
 ThingerMbed thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
 ThingerMbedOTA ota(thing);
 
+// cannot connect? Update WiFiNiNA and add iot.thinger.io SSL Certificate
+// https://support.arduino.cc/hc/en-us/articles/360016119219
+
 void setup() {
   // configure LED_BUILTIN for output
   pinMode(LED_BUILTIN, OUTPUT);
@@ -23,9 +26,13 @@ void setup() {
   // resource output example (i.e. reading a sensor value, a variable, etc)
   thing["millis"] >> outputValue(millis());
 
+  // start thinger task
+  thing.start();
+
   // more details at http://docs.thinger.io/arduino/
 }
 
 void loop() {
-  thing.handle();
+  // use loop as in normal Arduino Sketch
+  // use thing.lock() thing.unlock() if using variables exposed on thinger resources
 }

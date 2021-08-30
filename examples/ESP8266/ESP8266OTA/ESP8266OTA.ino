@@ -1,9 +1,14 @@
 #define THINGER_SERIAL_DEBUG
 
 #include <ThingerESP8266.h>
+#include <ThingerESP8266OTA.h>
 #include "arduino_secrets.h"
 
 ThingerESP8266 thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
+
+// Initialize ESP8266 OTA
+// use Thinger.io VSCode Studio extension + Platformio to upgrade the device remotelly
+ThingerESP8266OTA ota(thing);
 
 void setup() {
   // open serial for monitoring
