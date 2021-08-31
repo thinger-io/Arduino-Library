@@ -142,6 +142,23 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 class ThingerClient : public thinger::thinger {
 
 public:
+
+    enum THINGER_STATE{
+        NETWORK_CONNECTING,
+        NETWORK_CONNECTED,
+        NETWORK_CONNECT_ERROR,
+        SOCKET_CONNECTING,
+        SOCKET_CONNECTED,
+        SOCKET_CONNECTION_ERROR,
+        SOCKET_DISCONNECTED,
+        SOCKET_TIMEOUT,
+        SOCKET_ERROR,
+        THINGER_AUTHENTICATING,
+        THINGER_AUTHENTICATED,
+        THINGER_AUTH_FAILED,
+        THINGER_STOP_REQUEST
+    };
+
     ThingerClient(Client& client, const char* user, const char* device, const char* device_credential) :
             client_(client),
             username_(user),
@@ -352,22 +369,6 @@ protected:
         for (;;) {}
     }
 
-    enum THINGER_STATE{
-        NETWORK_CONNECTING,
-        NETWORK_CONNECTED,
-        NETWORK_CONNECT_ERROR,
-        SOCKET_CONNECTING,
-        SOCKET_CONNECTED,
-        SOCKET_CONNECTION_ERROR,
-        SOCKET_DISCONNECTED,
-        SOCKET_TIMEOUT,
-        SOCKET_ERROR,
-        THINGER_AUTHENTICATING,
-        THINGER_AUTHENTICATED,
-        THINGER_AUTH_FAILED,
-        THINGER_STOP_REQUEST
-    };
-
     virtual void thinger_state_listener(THINGER_STATE state){
         #ifdef _DEBUG_
         switch(state){
@@ -421,6 +422,7 @@ protected:
                 break;
         }
         #endif
+        if(state_listener_) state_listener_(state);
     }
 
     bool handle_connection()
@@ -527,6 +529,10 @@ public:
         return root_ca_;
     }
 
+    void set_state_listener(std::function<void(THINGER_STATE)> state_listener){
+        state_listener_ = state_listener;
+    }
+
     Client& get_client(){
         return client_;
     }
@@ -540,6 +546,7 @@ private:
     const char* host_;
     const char* root_ca_;
     bool reboot_ = false;
+    std::function<void(THINGER_STATE)> state_listener_;
 #ifndef THINGER_DISABLE_OUTPUT_BUFFER
     uint8_t * out_buffer_;
     size_t out_size_;
