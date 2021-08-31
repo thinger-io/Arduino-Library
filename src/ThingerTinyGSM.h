@@ -35,10 +35,6 @@ class ThingerTinyGSM : public ThingerClient {
 public:
     ThingerTinyGSM(const char* user, const char* device, const char* device_credential, Stream& serial) :
         ThingerClient(client_, user, device, device_credential),
-        apn_(NULL),
-        user_(NULL),
-        password_(NULL),
-        pin_(NULL),
         modem_(serial),
         client_(modem_)
     {
@@ -55,10 +51,12 @@ protected:
     }
 
     virtual bool connect_network(){
-        if(apn_==NULL) {
+        if(apn_==nullptr) {
             THINGER_DEBUG("NETWORK", "Cannot connect without setting the APN!")
             return false;
         }
+
+        if(module_reset_) module_reset_();
 
         if(!modem_.isNetworkConnected()){
             THINGER_DEBUG("NETWORK", "Initializing Modem...")
@@ -66,7 +64,10 @@ protected:
                 THINGER_DEBUG("NETWORK", "Cannot init modem! Is it connected?")
                 return false;
             }else{
-                if(pin_!=NULL){
+                THINGER_DEBUG_VALUE("NETWORK", "Modem Info: ", modem_.getModemInfo());
+
+                // Unlock your SIM card with a PIN if needed
+                if(pin_!=nullptr && modem_.getSimStatus() != 3){
                     THINGER_DEBUG_VALUE("NETWORK", "Unlocking SIM... ", pin_)
                     if(!modem_.simUnlock(pin_)){
                         THINGER_DEBUG("NETWORK", "Cannot unlock SIM!")
@@ -94,9 +95,11 @@ protected:
         return true;
     }
 
+#ifdef _DISABLE_TLS_
     virtual bool secure_connection(){
         return false;
     }
+#endif
 
 public:
     TinyGsm& getTinyGsm(){
@@ -107,7 +110,7 @@ public:
         return client_;
     }
 
-    void setAPN(const char* APN, const char* user=NULL, const char* password=NULL){
+    void setAPN(const char* APN, const char* user=nullptr, const char* password=nullptr){
         apn_ = APN;
         user_ = user;
         password_ = password;
@@ -117,13 +120,23 @@ public:
         pin_ = pin;
     }
 
+    void setModuleReset(std::function<void()> module_reset){
+        module_reset_ = module_reset;
+    }
+
 private:
-    const char* apn_;
-    const char* user_;
-    const char* password_;
-    const char* pin_;
+    const char* apn_        = nullptr;
+    const char* user_       = nullptr;
+    const char* password_   = nullptr;
+    const char* pin_        = nullptr;
     TinyGsm modem_;
+#ifdef _DISABLE_TLS_
     TinyGsmClient client_;
+#else
+    TinyGsmClientSecure client_;
+#endif
+    std::function<void()> module_reset_;
+
 };
 
 #endif
