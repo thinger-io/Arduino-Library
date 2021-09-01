@@ -29,12 +29,16 @@
 #include "thinger_message.hpp"
 
 #ifdef __has_include
-#  if __has_include(<functional>) || defined(ESP8266)
+#  if __has_include(<functional>)
 #    undef min
 #    undef max
 #    include <functional>
 #    define THINGER_USE_FUNCTIONAL
 #  endif
+#endif
+
+#ifndef THINGER_DISABLE_STREAM_LISTENER
+#define THINGER_ENABLE_STREAM_LISTENER
 #endif
 
 namespace thinger{
@@ -48,7 +52,8 @@ public:
         run                 = 1,
         pson_in             = 2,
         pson_out            = 3,
-        pson_in_pson_out    = 4
+        pson_in_pson_out    = 4,
+        pson_stream         = 5
     };
 
     enum access_type{
@@ -84,6 +89,7 @@ private:
 
 #endif
 
+
     // used for defining the resource
     io_type io_type_;
     access_type access_type_;
@@ -96,6 +102,14 @@ private:
     unsigned long streaming_freq_;
     unsigned long last_streaming_;
 
+#ifdef THINGER_ENABLE_STREAM_LISTENER
+#ifdef THINGER_USE_FUNCTIONAL
+        std::function<void(uint16_t, unsigned long, bool enabled)> stream_listener_;
+#else
+        void (*stream_listener_)(uint16_t, unsigned long, bool enabled) = nullptr;
+#endif
+#endif
+
     // TODO change to pointer so it is not using more than a pointer size if not used?
     thinger_map<thinger_resource> sub_resources_;
 
@@ -106,6 +120,13 @@ private:
         }else if(streaming_freq_>0 && streaming_freq==0){
             get_streaming_counter()--;
         }
+
+#ifdef THINGER_ENABLE_STREAM_LISTENER
+        if(stream_listener_){
+            stream_listener_(stream_id, streaming_freq, true);
+        }
+#endif
+
         streaming_freq_ = streaming_freq;
         last_streaming_ = 0;
     }
@@ -115,6 +136,11 @@ public:
     {}
 
     void disable_streaming(){
+#ifdef THINGER_ENABLE_STREAM_LISTENER
+        if(stream_listener_){
+            stream_listener_(stream_id_, streaming_freq_, false);
+        }
+#endif
         stream_id_ = 0;
         if(streaming_freq_>0){
             get_streaming_counter()--;
@@ -153,6 +179,10 @@ public:
     thinger_resource & operator()(access_type type){
         access_type_ = type;
         return *this;
+    }
+
+    void set_io_type(io_type type){
+       io_type_ = type;
     }
 
     io_type get_io_type(){
@@ -266,6 +296,23 @@ public:
         callback_.pson_in_pson_out = pson_in_pson_out_function;
     }
 
+
+#ifdef THINGER_ENABLE_STREAM_LISTENER
+    /**
+         * Establish a function for receiving stream listening events
+         */
+    void set_stream_listener(std::function<void(uint16_t, unsigned long, bool enabled)> stream_listener){
+        stream_listener_ = stream_listener;
+    }
+
+    /**
+         * Establish a function for receiving stream listening events
+         */
+    std::function<void(uint16_t, unsigned long, bool enabled)> get_stream_listener(){
+        return stream_listener_;
+    }
+#endif
+
 #else
 
     /**
@@ -332,6 +379,19 @@ public:
         callback_.pson_in_pson_out = pson_in_pson_out_function;
     }
 
+#ifdef THINGER_ENABLE_STREAM_LISTENER
+    /**
+      * Establish a function for receiving stream listening events
+      */
+    void set_stream_listener(void (*stream_listener)(uint16_t, unsigned long, bool enabled)){
+        stream_listener_ = stream_listener;
+    }
+
+    void (*stream_listener)(uint16_t, unsigned long, bool enabled) get_stream_listener(){
+        return stream_listener_;
+    }
+#endif
+
 #endif
 
     /**
@@ -353,6 +413,9 @@ public:
                         break;
                     case pson_in_pson_out:
                         callback_.pson_in_pson_out(request, response);
+                        break;
+                    case pson_stream:
+                        callback_.pson(request);
                         break;
                     case none:
                         break;
