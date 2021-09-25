@@ -316,8 +316,24 @@ namespace thinger{
             message.set_stream_id(resource.get_stream_id());
             message.set_signal_flag(type);
             // TODO modify and update servers to support resource.fill_output(message.get_data());
-            th_synchronized(resource.fill_api_io(message.get_data());)
+            resource.fill_api_io(message.get_data());
             send_message(message);
+        }
+
+        /**
+         * Stream the given resource with given data
+         * @param resource resource defined in the code, i.e, thing["location"]
+         * @param type STREAM_EVENT or STREAM_SAMPLE, depending if the stream was an event or a scheduled sampling
+         */
+        bool stream_data(thinger_resource& resource, pson& payload){
+            if(resource.stream_enabled()){
+                thinger_message message;
+                message.set_stream_id(resource.get_stream_id());
+                message.set_signal_flag(thinger_message::STREAM_EVENT);
+                pson::swap(payload, message.get_data());
+                return send_message(message);
+            }
+            return false;
         }
 
          /**
@@ -332,7 +348,7 @@ namespace thinger{
             }
             return false;
         }
-
+        
         /**
          * Stream the given resource. There should be any process listening for such resource, i.e., over a server websocket.
          * @param resource resource identifier defined in the code, i.e, "location"
@@ -572,7 +588,7 @@ namespace thinger{
                                 }
                             // fll the api over the specified resource
                             }else{
-                                th_synchronized(thing_resource->fill_api_io(response.get_data());)
+                                thing_resource->fill_api_io(response.get_data());
                             }
 
                         // just want to interact with the resource itself...
@@ -584,7 +600,7 @@ namespace thinger{
 
                             // the resource is available, so, handle its i/o.
                             }else{
-                                th_synchronized(thing_resource->handle_request(request, response);)
+                                thing_resource->handle_request(request, response);
                                 // stream enabled over a resource input -> notify the current state
                                 if(thing_resource->stream_enabled() && (thing_resource->get_io_type()==thinger_resource::pson_in || thing_resource->get_io_type()==thinger_resource::pson_in_pson_out)){
                                     // send normal response
