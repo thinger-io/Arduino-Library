@@ -521,6 +521,14 @@ public:
         return host_;
     }
 
+    const char* get_username(){
+        return username_;
+    }
+
+    const char* get_device_id(){
+        return device_id_;
+    }
+
     void set_root_ca(const char* ca){
         root_ca_ = ca;
     }
