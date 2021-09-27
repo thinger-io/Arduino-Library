@@ -4,7 +4,8 @@
 #include <Stream.h>
 #include "ThingerClient.h"
 
-#define BUFFER_SIZE 128
+#define BUFFER_SIZE     128
+#define MAX_CMD_ARGS    10
 
 #ifndef THINGER_PROMPT_COLOR
 #define THINGER_PROMPT_COLOR "\033[1;34m"
@@ -27,34 +28,10 @@ struct ThingerCommand{
     const char* description;
 };
 
+
 class ThingerConsole : public Stream{
 
 public:
-
-    void register_commands(){
-        
-        command("clear", [&](int argc, char* argv[]){
-            clear_screen();
-        }, "clear console");
-
-        command("reboot", [&](int argc, char* argv[]){
-            println("device will reboot now...");
-            client_.reboot();
-        }, "reboot device");
-
-        command("exit", [&](int argc, char* argv[]){
-            // TODO, this protocol does not support closing streams
-        }, "close terminal");
-
-        command("help", [&](int argc, char* argv[]){
-            auto cmd =  cmds_.begin();
-            while(cmd){
-                printf(TERMINAL_GREEN_COLOR "%s\t" THINGER_NORMAL_COLOR " - %s\n", cmd->key_, cmd->value_.description);
-                cmd = cmd->next_;
-            }
-        }, "show this help");
-
-    }
 
     ThingerConsole(ThingerClient& client) : 
         client_(client),
@@ -88,14 +65,15 @@ public:
 
                 // ctrl +c
                 }else if(input==0x03){ 
-                    printf("^C\n");
-                    if(running_ && stop_cmd()){
-                        running_ = false;
-                    }else{
-                        reset();
-                        send_prompt_1();
+                    if(commands_enabled_){
+                        printf("^C\n");
+                        if(running_ && stop_cmd()){
+                            running_ = false;
+                        }else{
+                            reset();
+                            send_prompt_1();
+                        }
                     }
-
                 // ESC caracters
                 }else if(input==0x1b){ // ESC
                     // do nothing on escape characters
@@ -155,8 +133,8 @@ public:
                             memcpy(cmd_buffer_, rx_buffer_, rx_index_-1);
 
                             // parse command arguments
-                            char *argv[10];
-                            int argc = parse_command(cmd_buffer_, rx_index_-1, argv);
+                            char *argv[MAX_CMD_ARGS];
+                            int argc = parse_command(cmd_buffer_, rx_index_-1, argv, MAX_CMD_ARGS);
 
                             // run command and arguments
                             if(argc){
@@ -172,6 +150,8 @@ public:
 
                             reset();
                             send_prompt_1();
+                        }else{
+                            rx_input_ = rx_index_;
                         }
                         
                     // echo anything else
@@ -190,7 +170,9 @@ public:
                 THINGER_DEBUG("CONSOLE", "Console started");
                 console_running_ = true;
                 reset();
-                send_prompt_1();
+                if(commands_enabled_){
+                    send_prompt_1();
+                }
             }else{
                 console_running_ = false;
                 THINGER_DEBUG("CONSOLE", "Console stopped");
@@ -220,15 +202,15 @@ public:
 
     int available() override{
         client_.handle();
-        return rx_index_ ? rx_index_ - rx_read_ : 0;
+        return rx_input_ ? rx_input_ - rx_read_ : 0;
     }
 
     int read() override{
         if(!available()) return -1;
         auto value = rx_buffer_[rx_read_++];
 
-        // reset buffer when all commands are read
-        if(rx_read_>=rx_index_){
+        // reset buffer when input is read
+        if(rx_read_>=rx_input_){
             reset();
         }
 
@@ -267,14 +249,46 @@ public:
         cmds_[cmd].description = desc;
     }
 
+    void error(const char* message){
+        printf(THINGER_RED_COLOR "%s\n", message);
+    }
+
 protected:
 
+    void register_commands(){
+        
+        command("clear", [&](int argc, char* argv[]){
+            clear_screen();
+        }, "clear console");
+
+        command("reboot", [&](int argc, char* argv[]){
+            println("device will reboot now...");
+            client_.reboot();
+        }, "reboot device");
+
+        command("exit", [&](int argc, char* argv[]){
+            // TODO, this protocol does not support closing streams
+        }, "close terminal");
+
+        command("help", [&](int argc, char* argv[]){
+            auto cmd =  cmds_.begin();
+            while(cmd){
+                printf(TERMINAL_GREEN_COLOR "%s\t" THINGER_NORMAL_COLOR " - %s\n", cmd->key_, cmd->value_.description);
+                cmd = cmd->next_;
+            }
+        }, "show this help");
+
+        commands_enabled_ = false;
+    }
+
     virtual bool run_cmd(std::function<void(int argc, char* argv[])>& callback, int argc, char* argv[]){
-        running_ = true;
         reset();
-        callback(argc, argv);
-        running_ = false;
-        return false;
+        if(callback){
+            running_ = true;
+            callback(argc, argv);
+            running_ = false;
+        }
+        return (bool)callback;
     }
 
      virtual bool stop_cmd(){
@@ -308,7 +322,7 @@ protected:
         flush();
     }
 
-    int parse_command(char* command, size_t size, char *argv[]){
+    int parse_command(char* command, size_t size, char *argv[], size_t max_args){
         int argc = 0;
         char* current_arg = nullptr;
         bool open_quote = false;
@@ -316,7 +330,9 @@ protected:
 
         static auto add_token = [&](size_t i){
             command[i] = 0;
-            argv[argc++] = current_arg;
+            if(argc<max_args){
+                argv[argc++] = current_arg;
+            }
             current_arg = nullptr;
         };
 
@@ -362,6 +378,7 @@ protected:
     void reset(){
         rx_index_ = 0;
         rx_read_ = 0;
+        rx_input_ = 0;
         pending_quotation = false;
     }
 
@@ -377,8 +394,9 @@ protected:
 
     // rx buffer
     uint8_t rx_buffer_[BUFFER_SIZE+1];
-    size_t rx_index_ = 0;
-    size_t rx_read_ = 0;
+    size_t rx_index_  = 0;
+    size_t rx_read_   = 0;
+    size_t rx_input_  = 0;
 
     // buffer for holding args for commands
     char cmd_buffer_[BUFFER_SIZE];
