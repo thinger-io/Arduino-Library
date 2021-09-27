@@ -66,7 +66,7 @@ public:
                 // ctrl +c
                 }else if(input==0x03){ 
                     if(commands_enabled_){
-                        printf("^C\n");
+                        printf("^C\r\n");
                         if(running_ && stop_cmd()){
                             running_ = false;
                         }else{
@@ -142,7 +142,7 @@ public:
                                 const char* cmd = argv[0];
                                 auto* command = cmds_.find(cmd);
                                 if(command==nullptr){
-                                    printf("%s : " THINGER_RED_COLOR "command not found\n", argv[0]);
+                                    printf("%s : " THINGER_RED_COLOR "command not found\r\n", argv[0]);
                                 }else{
                                     run_cmd(command->callback, argc, argv);
                                 }
@@ -250,7 +250,7 @@ public:
     }
 
     void error(const char* message){
-        printf(THINGER_RED_COLOR "%s\n", message);
+        printf(THINGER_RED_COLOR "%s\r\n", message);
     }
 
 protected:
@@ -273,7 +273,7 @@ protected:
         command("help", [&](int argc, char* argv[]){
             auto cmd =  cmds_.begin();
             while(cmd){
-                printf(TERMINAL_GREEN_COLOR "%s\t" THINGER_NORMAL_COLOR " - %s\n", cmd->key_, cmd->value_.description);
+                printf(TERMINAL_GREEN_COLOR "%s\t" THINGER_NORMAL_COLOR " - %s\r\n", cmd->key_, cmd->value_.description);
                 cmd = cmd->next_;
             }
         }, "show this help");
