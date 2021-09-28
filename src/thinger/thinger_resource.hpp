@@ -387,7 +387,7 @@ public:
         stream_listener_ = stream_listener;
     }
 
-    void (*stream_listener)(uint16_t, unsigned long, bool enabled) get_stream_listener(){
+    void (*get_stream_listener())(uint16_t, unsigned long, bool enabled){
         return stream_listener_;
     }
 #endif
