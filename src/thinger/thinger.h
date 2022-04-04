@@ -79,8 +79,6 @@ namespace thinger{
         rtos::Mutex mutex_;
 #endif
 
-
-
     protected:
 
         /**
@@ -88,13 +86,7 @@ namespace thinger{
          */
         virtual void disconnected(){
             // stop all streaming resources after disconnect
-            if(thinger_resource::get_streaming_counter()>0) {
-                thinger_map<thinger_resource>::entry* current = resources_.begin();
-                while(current!=NULL){
-                    current->value_.disable_streaming();
-                    current = current->next_;
-                }
-            }
+            stop_streams();
         }
 
         bool connect(const char* username, const char* device_id, const char* credential){
@@ -139,6 +131,16 @@ namespace thinger{
     #error "Thinger Multitask enabled but not framework defined"
 #endif
 #endif
+
+        void stop_streams(){
+            if(thinger_resource::get_streaming_counter()>0) {
+                thinger_map<thinger_resource>::entry* current = resources_.begin();
+                while(current!=NULL){
+                    current->value_.disable_streaming();
+                    current = current->next_;
+                }
+            }
+        }
 
         thinger_resource & operator[](const char* res){
             return resources_[res];
@@ -538,6 +540,9 @@ namespace thinger{
             // create a response message to any incoming request
             thinger_message response(request);
 
+            // pointer to the requested resource (not initialized by default)
+            thinger_resource * thing_resource = NULL;
+
             // if there is no resource in the message, they are not asking for anything in our device
             if(!request.has_resource()){
                 response.set_signal_flag(thinger_message::REQUEST_ERROR);
@@ -548,9 +553,7 @@ namespace thinger{
              * concatenated, i.e., temperature/degrees; tire1/pressure.
              */
             else{
-                // pointer to the requested resource (not initialized by default)
-                thinger_resource * thing_resource = NULL;
-
+                
                 for(pson_array::iterator it = request.resources().begin(); it.valid(); it.next()){
 
                     // if the resource name is not a string.. stop!
@@ -604,9 +607,11 @@ namespace thinger{
                                 // stream enabled over a resource input -> notify the current state
                                 if(thing_resource->stream_enabled() && (thing_resource->get_io_type()==thinger_resource::pson_in || thing_resource->get_io_type()==thinger_resource::pson_in_pson_out)){
                                     // send normal response
-                                    send_message(response);
-                                    // stream the event to notify the change
-                                    return stream_resource(*thing_resource, thinger_message::STREAM_EVENT);
+                                    if(send_message(response)){
+                                        thing_resource->then();
+                                        // stream the event to notify the change
+                                        return stream_resource(*thing_resource, thinger_message::STREAM_EVENT);
+                                    }
                                 }
                             }
                         }
@@ -615,7 +620,9 @@ namespace thinger{
             }
             // do not send responses to requests without a stream id as they will not reach any destination!
             if(response.get_stream_id()!=0){
-                send_message(response);
+                if(send_message(response) && thing_resource!=NULL){
+                    thing_resource->then();
+                }
             }
         }
 

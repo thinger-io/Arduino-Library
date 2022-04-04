@@ -102,6 +102,9 @@ private:
     unsigned long streaming_freq_;
     unsigned long last_streaming_;
 
+    // used for thenables (code after running a resource)
+    std::function<void()> then_;
+
 #ifdef THINGER_ENABLE_STREAM_LISTENER
 #ifdef THINGER_USE_FUNCTIONAL
         std::function<void(uint16_t, unsigned long, bool enabled)> stream_listener_;
@@ -235,9 +238,10 @@ public:
     /**
      * Establish a function without input or output parameters
      */
-    void operator=(std::function<void()> run_function){
+    thinger_resource& operator=(std::function<void()> run_function){
         io_type_ = run;
         callback_.run = run_function;
+        return *this;
     }
 
     /**
@@ -267,9 +271,10 @@ public:
     /**
      * Establish a function that only generates an output
      */
-    void operator>>(std::function<void(protoson::pson&)> out_function){
+    thinger_resource& operator>>(std::function<void(protoson::pson&)> out_function){
         io_type_ = pson_out;
         callback_.pson = out_function;
+        return *this;
     }
 
     /**
@@ -283,9 +288,10 @@ public:
     /**
      * Establish a function that can receive input parameters and generate an output
      */
-    void operator=(std::function<void(protoson::pson& in, protoson::pson& out)> pson_in_pson_out_function){
+    thinger_resource& operator=(std::function<void(protoson::pson& in, protoson::pson& out)> pson_in_pson_out_function){
         io_type_ = pson_in_pson_out;
         callback_.pson_in_pson_out = pson_in_pson_out_function;
+        return *this;
     }
 
     /**
@@ -299,19 +305,33 @@ public:
 
 #ifdef THINGER_ENABLE_STREAM_LISTENER
     /**
-         * Establish a function for receiving stream listening events
-         */
+     * Establish a function for receiving stream listening events
+     */
     void set_stream_listener(std::function<void(uint16_t, unsigned long, bool enabled)> stream_listener){
         stream_listener_ = stream_listener;
     }
 
     /**
-         * Establish a function for receiving stream listening events
-         */
+     * Establish a function for receiving stream listening events
+     */
     std::function<void(uint16_t, unsigned long, bool enabled)> get_stream_listener(){
         return stream_listener_;
     }
 #endif
+
+    /**
+     * Establish a function that will be called after executing the resource
+     */
+    void then(std::function<void()> then){
+        then_ = then;
+    }
+
+    /**
+     * Run the configured 'then' resource function, if any
+     */
+    void then(){
+        if(then_) then_();
+    }
 
 #else
 

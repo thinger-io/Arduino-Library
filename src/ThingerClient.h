@@ -470,7 +470,10 @@ protected:
 public:
 
     void reboot(){
-        reboot_ = true;
+        delay(1000);
+        stop();
+        delay(1000);
+        run_reboot();
     }
 
     void stop(){
@@ -491,14 +494,6 @@ public:
             thinger::thinger::handle(millis(), available>0);
         }else{
             delay(RECONNECTION_TIMEOUT); // get some delay for a connection retry
-        }
-
-        if(reboot_){
-            reboot_ = false;
-            delay(1000);
-            stop();
-            delay(1000);
-            run_reboot();
         }
     }
 
@@ -553,13 +548,13 @@ private:
     const char* device_password_;
     const char* host_;
     const char* root_ca_;
-    bool reboot_ = false;
     std::function<void(THINGER_STATE)> state_listener_;
 #ifndef THINGER_DISABLE_OUTPUT_BUFFER
     uint8_t * out_buffer_;
     size_t out_size_;
     size_t out_total_size_;
 #endif
+
 };
 
 /**

@@ -37,7 +37,7 @@ public:
         ThingerOTA(client)
     {
         // initialize a default block size for ESP8266
-        set_block_size(8192);
+        set_block_size(2048);
     }
 
     virtual ~ThingerESP8266OTA(){
@@ -48,6 +48,13 @@ private:
     char md5_checksum_[33];
 
 protected:
+
+    /*
+    size_t get_block_size() const override{
+        size_t free_heap = ESP.getFreeHeap() - 512;
+        THINGER_DEBUG_VALUE("OTA", "Initializing default block size to: %zu", free_heap);
+        return 2048;
+    }*/
 
     void fill_options(pson& options) override{
         // set esp8266 platform
@@ -60,7 +67,6 @@ protected:
 #ifdef ATOMIC_FS_UPDATE
         options["compression"] = "gzip";
 #endif
-
     }
 
     bool begin_ota(const char* firmware, const char* version, size_t size, pson& options, pson& state) override
@@ -91,11 +97,10 @@ protected:
         const char* checksum = options["checksum"];
 #endif
         if(strlen(checksum)==32){
-            THINGER_DEBUG_VALUE("OTA", "Set MD5 verification:", checksum);
+            THINGER_DEBUG_VALUE("OTA", "Set MD5 verification: ", checksum);
             strcpy(md5_checksum_, checksum);
             Update.setMD5(md5_checksum_);
         }
-
 
         return init;
     }
