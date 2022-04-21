@@ -23,6 +23,7 @@
 
 #ifndef THINGER_ESP32_WEBCONFIG_H
 #define THINGER_ESP32_WEBCONFIG_H
+#define FORMAT_SPIFFS_IF_FAILED true
 
 #include <FS.h>
 #include <SPIFFS.h>
@@ -75,7 +76,7 @@ class ThingerESP32WebConfig : public ThingerWebConfig<ThingerESP32>{
      bool clean_credentials() override{
         THINGER_DEBUG("_CONFIG", "Cleaning credentials...");
         // clean Thinger.io credentials from file system
-        if(SPIFFS.begin()) {
+        if(SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED)) {
             THINGER_DEBUG("_CONFIG", "FS Mounted!");
             if (SPIFFS.exists(CONFIG_FILE)) {
                 THINGER_DEBUG("_CONFIG", "Removing Config File...");
@@ -98,7 +99,7 @@ class ThingerESP32WebConfig : public ThingerWebConfig<ThingerESP32>{
 
     bool save_configuration(pson& config) override{
         THINGER_DEBUG("_CONFIG", "Updating Device Info...");
-        if (SPIFFS.begin()) {
+        if (SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED)) {
             File configFile = SPIFFS.open(CONFIG_FILE, "w");
             if (configFile) {
                 pson_spiffs_encoder encoder(configFile);
@@ -116,7 +117,7 @@ class ThingerESP32WebConfig : public ThingerWebConfig<ThingerESP32>{
 
     bool load_configuration(pson& config) override{
         THINGER_DEBUG("_CONFIG", "Mounting FS...");
-        if (SPIFFS.begin()) {
+        if (SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED)) {
             THINGER_DEBUG("_CONFIG", "FS Mounted!");
             if (SPIFFS.exists(CONFIG_FILE)) {
                 //file exists, reading and loading
