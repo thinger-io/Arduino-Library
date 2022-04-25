@@ -1,3 +1,5 @@
+[![arduino-library-badge](https://www.ardu-badge.com/badge/thinger.io.svg?)](https://docs.thinger.io/sdk-setup)
+
 The Arduino Client Library is an easy to use client library to connect your IoT devices to the [Thinger.io](https://thinger.io "Thinger.io IoT Cloud Platform") IoT platform. This is a library specifically designed for the Arduino IDE/Platformio, so you can easily install it in your environment and start connecting your devices within minutes.
 
 ## Supported Boards
