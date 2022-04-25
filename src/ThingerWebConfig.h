@@ -117,20 +117,20 @@ protected:
             if(config_callback_!=NULL) config_callback_(config);
         }
 
-        // if credentials and wifi already configured, try to connect to wifi
-        if(thinger_config && WiFi.SSID() && !WiFi.SSID().length()==0){
-            THINGER_DEBUG("_CONFIG", "Connecting using previous configuration...");
-            return ThingerDevice::connect_network();
-        // don't have credentials or Wifi, initiate config portal
-        }else{
-            THINGER_DEBUG("_CONFIG", "Starting Webconfig...");
-            WiFiManager wifiManager;
-
+        WiFiManager wifiManager;
 #ifdef _DEBUG_
             wifiManager.setDebugOutput(true);
 #else
             wifiManager.setDebugOutput(false);
 #endif
+
+        // if credentials and wifi already configured, try to connect to wifi
+        if(thinger_config && wifiManager.getWiFiIsSaved()){
+            THINGER_DEBUG("_CONFIG", "Connecting using previous configuration...");
+            return ThingerDevice::connect_network();
+        // don't have credentials or Wifi, initiate config portal
+        }else{
+            THINGER_DEBUG("_CONFIG", "Starting Webconfig...");
 
             WiFiManagerParameter user_parameter("user", "User Id", user_, 40);
             WiFiManagerParameter device_parameter("device", "Device Id", device_, 40);
