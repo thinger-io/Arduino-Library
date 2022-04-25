@@ -47,17 +47,15 @@ protected:
     }
 
     virtual bool connect_network(){
-        if(wifi_ssid_==NULL){
-            THINGER_DEBUG("NETWORK", "Cannot connect to WiFi. SSID not set!");
-        }
-
         unsigned long wifi_timeout = millis();
         THINGER_DEBUG_VALUE("NETWORK", "Connecting to network ", wifi_ssid_);
 
         if(wifi_password_!=NULL){
             WiFi.begin((char*)wifi_ssid_, (char*) wifi_password_);
-        }else{
+        }else if(wifi_ssid_!=NULL){
             WiFi.begin((char*)wifi_ssid_);
+        }else{
+            WiFi.begin();
         }
 
         while( WiFi.status() != WL_CONNECTED) {
@@ -66,6 +64,7 @@ protected:
             yield();
             #endif
         }
+
         THINGER_DEBUG("NETWORK", "Connected to WiFi!");
         wifi_timeout = millis();
         THINGER_DEBUG("NETWORK", "Getting IP Address...");

@@ -13,17 +13,20 @@ public:
 
     ThingerOTA(ThingerClient& client){
 
+        // resource for configuring ota options
         client["$ota"]["options"] >> [&](pson& options){
-            options["enabled"] = enabled_;
-            options["block_size"] = block_size_;
+            options["enabled"] = is_enabled();
+            options["block_size"] = get_block_size();
+            options["timeout"] = timeout_;
 #if THINGER_OTA_MD5_VERIFICATION
             options["checksum"] = "md5";
 #endif 
             fill_options(options);
         };
 
-        client["$ota"]["begin"] = [&](pson& in, pson& out){
-            if(in.is_empty()){
+        // resource for starting ota updates
+        (client["$ota"]["begin"] = [&](pson& in, pson& out){
+            if(in.is_empty() || running_){
                 out["success"] = false;
                 return;
             }
@@ -59,16 +62,72 @@ public:
 
             if(init)
             {
-                // TODO remove user task handle while upgrading OTA
-                THINGER_DEBUG("OTA", "Waiting for firmware...");
+                // initialize ota control variables 
+                running_ = true;
+                succeed_ = false;
             }
-        };
 
-        client["$ota"]["write"] = [&](pson& in, pson& out){
-            if(!in.is_bytes()){
-                THINGER_DEBUG("OTA", "invalid input type received!");
+        }).then([&](){
+            if(running_){
+
+                if(on_start_) on_start_();
+                
+                // stop streams in case any is running
+                THINGER_DEBUG("OTA", "Stopping streams...");
+                client.stop_streams();
+
+                // initialize ota control variables 
+                running_ = true;
+                auto last_remaining = remaining();
+                auto last_update = millis();
+        
+                THINGER_DEBUG("OTA", "Waiting for firmware...");
+
+                // while ota is running
+                while(running_){
+
+                    // call client handle to allow incoming requests
+                    client.handle();
+                    
+                    // if there is progress while running ota... everything is ok
+                    auto current_remaining = remaining();
+                    if(last_remaining!=current_remaining){
+                        last_remaining = current_remaining;
+                        last_update = millis();
+
+                    // if there is no progress and elapsed time is greater than timeout -> stop
+                    }else if(millis()-last_update>=timeout_){
+                        THINGER_DEBUG_VALUE("OTA", "OTA update timed out after (ms): ", millis()-last_update);
+                        running_ = false;
+                        break;
+                    }
+
+                    yield();
+                }
+
+                if(!succeed_){
+                    THINGER_DEBUG("OTA", "OTA update failed... Restarting device");
+                    client.reboot();
+                }            
+            }
+        });
+
+        // resource for writing partial ota data
+        (client["$ota"]["write"] = [&](pson& in, pson& out){
+            // ensure we are running the ota upgrade
+            if(!running_){
+                THINGER_DEBUG("OTA", "no OTA update in progress");
                 out["success"] = false;
+                out["error"] = "no OTA update in progress";
                 return;
+            }
+
+            // ensure incoming data is a binary payload
+            if(!in.is_bytes()){
+                THINGER_DEBUG("OTA", "Invalid input type received");
+                out["success"] = false;
+                out["error"] = "Invalid input type received";
+                running_ = false;
             }
 
             // get buffer
@@ -93,10 +152,33 @@ public:
             THINGER_DEBUG_VALUE("OTA", "Wrote OK: ", success);
             THINGER_DEBUG_VALUE("OTA", "Elapsed time ms: ", stop-start);
 
+            running_ = success;
             out["success"] = success;
-        };
+        }).then([&]{
+            if(running_){
+                if(on_progress_) on_progress_(firmware_offset_, firmware_size_);
+            }
+        });
 
-        client["$ota"]["end"] >> [&](pson& out){
+        // resource for ending ota update
+        (client["$ota"]["end"] >> [&](pson& out){
+            
+            // ensure we are running the ota upgrade
+            if(!running_){
+                THINGER_DEBUG("OTA", "No OTA update in progress");
+                out["success"] = false;
+                out["error"] = "No OTA update in progress";
+                return;
+            }
+
+            // ensure we have received everything
+            if(remaining()){
+                THINGER_DEBUG("OTA", "Cannot end OTA with missing bytes");
+                out["success"] = false;
+                out["error"] = "Cannot end OTA with missing bytes";
+                return;
+            }
+
             THINGER_DEBUG("OTA", "Finishing...");
 
             bool result = true;
@@ -121,15 +203,24 @@ public:
 #endif
 
             result = result && end_ota(out);
-
+            succeed_ = result;
             THINGER_DEBUG_VALUE("OTA", "Update OK: ", result);
             out["success"] = result;
-        };
+        }).then([&]{
+            if(running_){
+                if(on_end_) on_end_();
+            }
+        });
 
-        client["$ota"]["reboot"] = [&](){
+        // resource for rebooting the device after ota update
+        (client["$ota"]["reboot"] = [](){
+            THINGER_DEBUG("OTA", "Received reboot request...");
+            // do nothing here and delay execution after ok response is sent
+        }).then([&](){
+            THINGER_DEBUG("OTA", "Rebooting...");
             client.reboot();
-        };
-    
+        });
+
     }
 
     ~ThingerOTA(){
@@ -137,13 +228,34 @@ public:
     }
 
     void set_block_size(size_t size){
+        THINGER_DEBUG_VALUE("OTA", "Setting OTA block size: ", size);
         block_size_ = size;
+    }
+
+
+    void set_timeout(size_t timeout){
+        timeout_ = timeout;
+    }
+
+    bool is_enabled(){
+        return enabled_;
     }
 
     void set_enabled(bool enabled){
         enabled_ = enabled;
     }
 
+    void on_start(std::function<void()> on_start){
+        on_start_ = on_start;
+    }
+
+    void on_end(std::function<void()> on_end){
+        on_end_ = on_end;
+    }
+
+    void on_progress(std::function<void(size_t progress, size_t total)> on_progress){
+        on_progress_ = on_progress;
+    }
 
 protected:
 
@@ -162,14 +274,24 @@ protected:
         return true;
     }
 
+    virtual size_t get_block_size() const{
+        return block_size_;
+    }
+
     virtual void fill_options(pson& options) = 0;
 
-
     bool enabled_           = true;
+    bool running_           = false;
+    bool succeed_           = false;
+
     uint16_t block_size_    = 8192;
+    size_t timeout_         = 30000;
     size_t firmware_offset_ = 0;
     size_t firmware_size_   = 0;
 
+    std::function<void()> on_start_;
+    std::function<void(size_t progress, size_t total)> on_progress_;
+    std::function<void()> on_end_;
 
 #if THINGER_OTA_MD5_VERIFICATION
     MD5_CTX md5_ctx_;
