@@ -120,7 +120,7 @@ protected:
         // if credentials and wifi already configured, try to connect to wifi
         if(thinger_config && WiFi.SSID() && !WiFi.SSID().length()==0){
             THINGER_DEBUG("_CONFIG", "Connecting using previous configuration...");
-            ThingerDevice::connect_network();
+            return ThingerDevice::connect_network();
         // don't have credentials or Wifi, initiate config portal
         }else{
             THINGER_DEBUG("_CONFIG", "Starting Webconfig...");
@@ -168,9 +168,8 @@ protected:
 
             if(config_callback_!=NULL) config_callback_(config);
             if(wifi_callback_!=NULL) wifi_callback_(wifiConnected);
+            return WiFi.status() == WL_CONNECTED;
         }
-
-        return WiFi.status() == WL_CONNECTED;
     }
 
 private:
