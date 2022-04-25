@@ -1,3 +1,8 @@
+2.25.2
+
+- Fix Compiling on WiFi devices without WiFi.begin() support after adding the WebConfig compatibility on ESP32.
+- Fix PORTENTA H7 compiling issue: does not implement WiFi.begin(SSID).
+
 2.25.1
 
 - Fix ESP32 Webconfig issue

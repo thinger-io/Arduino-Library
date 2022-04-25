@@ -31,9 +31,7 @@ class ThingerWifiClient : public ThingerClient {
 
 public:
     ThingerWifiClient(const char* user, const char* device, const char* device_credential) :
-            ThingerClient(client_, user, device, device_credential),
-            wifi_ssid_(NULL),
-            wifi_password_(NULL)
+            ThingerClient(client_, user, device, device_credential)
     {}
 
     ~ThingerWifiClient(){
@@ -48,15 +46,23 @@ protected:
 
     virtual bool connect_network(){
         unsigned long wifi_timeout = millis();
-        THINGER_DEBUG_VALUE("NETWORK", "Connecting to network ", wifi_ssid_);
 
-        if(wifi_password_!=NULL){
+        if(wifi_ssid_!=nullptr){
+            THINGER_DEBUG_VALUE("NETWORK", "Connecting to network ", wifi_ssid_);
             WiFi.begin((char*)wifi_ssid_, (char*) wifi_password_);
-        }else if(wifi_ssid_!=NULL){
-            WiFi.begin((char*)wifi_ssid_);
-        }else{
+        }
+        // espressif esp8266 and esp32 can connect to last network just with begin() (used with WiFiManager)
+        #if defined(ESP8266) || defined(ESP32)
+        else{
+            THINGER_DEBUG("NETWORK", "Connecting to stored network");
             WiFi.begin();
         }
+        #else
+        else{
+            THINGER_DEBUG("NETWORK", "Cannot connect to WiFi. SSID not set!");
+            return false;
+        }
+        #endif
 
         while( WiFi.status() != WL_CONNECTED) {
             if(millis() - wifi_timeout > 30000) return false;
@@ -80,7 +86,7 @@ protected:
 
 public:
 
-    void add_wifi(const char* ssid, const char* password=NULL)
+    void add_wifi(const char* ssid, const char* password=nullptr)
     {
         wifi_ssid_ = ssid;
         wifi_password_ = password;
@@ -88,8 +94,8 @@ public:
 
 protected:
     Client client_;
-    const char* wifi_ssid_;
-    const char* wifi_password_;
+    const char* wifi_ssid_ = nullptr;
+    const char* wifi_password_ = nullptr;
 };
 
 #define ThingerWifi ThingerWifiClient<WiFiClient>
