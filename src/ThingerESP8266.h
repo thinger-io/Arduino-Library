@@ -24,6 +24,14 @@
 #ifndef THINGER_ESP8266_H
 #define THINGER_ESP8266_H
 
+#ifndef THINGER_NTP_SERVER
+#define THINGER_NTP_SERVER "pool.ntp.org"
+#endif
+
+#ifndef THINGER_NTP_TIMEOUT
+#define THINGER_NTP_TIMEOUT 30000
+#endif
+
 #include <ESP8266WiFi.h>
 #include <time.h>
 #include "ThingerWifi.h"
@@ -54,29 +62,36 @@ public:
 protected:
 
 #ifndef THINGER_INSECURE_SSL
-    bool setClock() {
-        configTime(0, 0, "pool.ntp.org", "time.nist.gov");
-        THINGER_DEBUG("NTP_SYN", "Waiting for NTP time sync...");
-        unsigned long ntp_timeout = millis();
-        while (time(nullptr) < 8 * 3600 * 2) {
-            if(millis() - ntp_timeout > 30000){
-                THINGER_DEBUG("NTP_SYN", "Cannot sync time!");
-                return false;
-            }
-            delay(500);
-        }
+
+    void debug_clock(){
         #ifdef _DEBUG_
         time_t now = time(nullptr);
         char* time = ctime(&now);
         time[strlen(time)-1]=0;
         THINGER_DEBUG_VALUE("NTP_SYN", "Current time (UTC): ", time);
         #endif
+    }
+
+    bool set_clock() {
+        if(time(nullptr) > 8 * 3600 * 2){
+            debug_clock();
+            return true;
+        }
+            
+        THINGER_DEBUG("NTP_SYN", "Waiting for NTP time sync from: " THINGER_NTP_SERVER);
+        configTime(0, 0, THINGER_NTP_SERVER);
+        unsigned long ntp_timeout = millis();
+        while (time(nullptr) < 8 * 3600 * 2) {
+            if(millis() - ntp_timeout > THINGER_NTP_TIMEOUT){
+                THINGER_DEBUG("NTP_SYN", "Cannot sync time!");
+                return false;
+            }
+            delay(500);
+        }
+        debug_clock();
         return true;
     }
 
-    bool connect_network() override{
-        return ThingerWifiClient<WiFiClientSecure>::connect_network() && setClock();
-    }
 #endif
 
     bool connect_socket() override{
@@ -87,6 +102,7 @@ protected:
         THINGER_DEBUG("SSL/TLS", "Warning: TLS/SSL certificate will not be checked!")
 #else
         client_.setTrustAnchors(&x509);
+        if(!set_clock()) return false;
 #endif
         return client_.connect(get_host(), THINGER_SSL_PORT);
     }
