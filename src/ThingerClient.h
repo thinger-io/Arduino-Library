@@ -345,6 +345,14 @@ protected:
         return result;
     }
 
+    virtual void connect_socket_error(){
+
+    }
+
+    virtual void connect_socket_success(){
+
+    }
+
     virtual bool secure_connection(){
 #ifdef _DISABLE_TLS_
         return false;
@@ -450,6 +458,7 @@ protected:
         thinger_state_listener(SOCKET_CONNECTING);
         if (connect_socket()) {
             thinger_state_listener(SOCKET_CONNECTED);
+            connect_socket_success();
             thinger_state_listener(THINGER_AUTHENTICATING);
             connected = thinger::thinger::connect(username_, device_id_, device_password_);
             if(!connected){
@@ -463,6 +472,7 @@ protected:
         }
         else{
             thinger_state_listener(SOCKET_CONNECTION_ERROR);
+            connect_socket_error();
         }
         return connected;
     }
