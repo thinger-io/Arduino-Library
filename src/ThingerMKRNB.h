@@ -24,11 +24,12 @@
 #ifndef THINGER_MKRNB_H
 #define THINGER_MKRNB_H
 
-
-#define GPRS_CONNECTION_TIMEOUT 30000
+#define NB_CONNECTION_TIMEOUT   120000
+#define GPRS_CONNECTION_TIMEOUT 60000
 
 #include <MKRNB.h>
 #include "ThingerClient.h"
+
 
 class ThingerMKRNB : public ThingerClient {
 
@@ -45,33 +46,68 @@ public:
 
 protected:
 
-    virtual bool network_connected(){
-        return nbConnected_ && gprsConnected_;
+
+    void connect_socket_success() override{
+        connection_errors_ = 0;
     }
 
-    virtual bool connect_network(){
+    void connect_socket_error() override{
+        connection_errors_++;
+        if(connection_errors_==6){
+            // soft reset the modem if socket cannot be connected in a while
+            THINGER_DEBUG("NETWORK", "Soft-Restarting modem...");
+            MODEM.reset();
+        }else if(connection_errors_==12){
+            THINGER_DEBUG("NETWORK", "Hard-Restarting modem...");
+            // cannot connect after several attempts? try to restart the modem
+            MODEM.hardReset();
+        }
+    }
+
+    bool network_connected() override{
+        THINGER_DEBUG("__NBIOT", "checking...")
+        // check CEREG
+        return nbConnected_ ? nbAccess_.isAccessAlive() : false;
+    }
+
+    bool connect_network() override{
+        THINGER_DEBUG("__NBIOT", "Initializing NB Network...")
+        THINGER_DEBUG_VALUE("__NBIOT", "Connecting to APN: ", apn_)
+        THINGER_DEBUG_VALUE("__NBIOT", "APN username: ", username_)
+        THINGER_DEBUG_VALUE("__NBIOT", "APN password: ", password_)
+        // set NB connection timeout
+        nbAccess_.setTimeout(NB_CONNECTION_TIMEOUT);
+
+        if(modemRestart_){
+            THINGER_DEBUG("__NBIOT", "Modem will be restarted...");
+        }
+
+        // initialize modem, synchronously
+        nbConnected_ = nbAccess_.begin(pin_, apn_, username_, password_, modemRestart_, true) == NB_READY;
+
+        THINGER_DEBUG_VALUE("__NBIOT", "NB Network: ", nbConnected_)
+
+        // will try to connect next time by restarting the modem
         if(!nbConnected_){
-            THINGER_DEBUG("__NBIOT", "Initializing NB Network...")
-            THINGER_DEBUG_VALUE("__NBIOT", "Connecting to APN: ", apn_)
-            THINGER_DEBUG_VALUE("__NBIOT", "APN username: ", username_)
-            THINGER_DEBUG_VALUE("__NBIOT", "APN password: ", password_)
-            nbConnected_ = nbAccess_.begin(pin_, apn_, username_, password_, false, true) == NB_READY;
-            THINGER_DEBUG_VALUE("__NBIOT", "NB Network: ", nbConnected_)
+            THINGER_DEBUG("__NBIOT", "Cannot connect, will try to restart modem next time...")
+            modemRestart_ = true;
+            return false;
         }
 
-        if(nbConnected_){
-            // try to attach GPRS
-            THINGER_DEBUG("___GPRS", "Initializing GPRS Connection...")
-            gprs_.setTimeout(GPRS_CONNECTION_TIMEOUT);
-            gprsConnected_ = gprs_.attachGPRS(true) == GPRS_READY;
-            THINGER_DEBUG_VALUE("___GPRS", "GPRS Connection: ", gprsConnected_);
-            if(gprsConnected_){
-                THINGER_DEBUG_VALUE("NETWORK", "Got IP Address: ", gprs_.getIPAddress())
-            }
-            
-        }
+        // connection is ok reset restart flag for next time
+        modemRestart_ = false;
 
-        return nbConnected_ && gprsConnected_;
+        // try to attach GPRS
+        THINGER_DEBUG("___GPRS", "Initializing GPRS Connection...")
+        // set GPRS connection timeout
+        gprs_.setTimeout(GPRS_CONNECTION_TIMEOUT);
+        // try to attach GPRS, synchronously
+        bool gprsConnected = gprs_.attachGPRS(true) == GPRS_READY;
+        THINGER_DEBUG_VALUE("___GPRS", "GPRS Connection: ", gprsConnected);
+        if(!gprsConnected) return false;
+        THINGER_DEBUG_VALUE("NETWORK", "Got IP Address: ", gprs_.getIPAddress())
+
+        return true;
     }
 
 public:
@@ -96,12 +132,14 @@ public:
     }
 
 protected:
-    const char * pin_       = nullptr;
-    const char * apn_       = nullptr;
-    const char * username_  = nullptr;
-    const char * password_  = nullptr;
-    bool nbConnected_       = false;
-    bool gprsConnected_     = false;
+    const char * pin_           = nullptr;
+    const char * apn_           = nullptr;
+    const char * username_      = nullptr;
+    const char * password_      = nullptr;
+    bool nbConnected_           = false;
+    bool modemRestart_          = false;
+    uint8_t connection_errors_  = 0;
+
 
 #ifndef _DISABLE_TLS_
     NBSSLClient client_;
