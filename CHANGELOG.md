@@ -1,3 +1,7 @@
+2.26.0
+
+- Added CMakeLists for integration with ESP-IDF as component
+
 2.25.2
 
 - Fix Compiling on WiFi devices without WiFi.begin() support after adding the WebConfig compatibility on ESP32.
