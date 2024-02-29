@@ -380,9 +380,9 @@ namespace thinger{
                 if(keep_alive_response){
                     last_keep_alive = current_time;
                     keep_alive_response = false;
-                    send_keep_alive();
+                    if(!send_keep_alive()) return disconnected();
                 }else{
-                    disconnected();
+                    return disconnected();
                 }
             }
 
@@ -608,7 +608,9 @@ namespace thinger{
                                 if(thing_resource->stream_enabled() && (thing_resource->get_io_type()==thinger_resource::pson_in || thing_resource->get_io_type()==thinger_resource::pson_in_pson_out)){
                                     // send normal response
                                     if(send_message(response)){
+#ifdef THINGER_USE_FUNCTIONAL
                                         thing_resource->then();
+#endif
                                         // stream the event to notify the change
                                         return stream_resource(*thing_resource, thinger_message::STREAM_EVENT);
                                     }
@@ -621,7 +623,9 @@ namespace thinger{
             // do not send responses to requests without a stream id as they will not reach any destination!
             if(response.get_stream_id()!=0){
                 if(send_message(response) && thing_resource!=NULL){
+#ifdef THINGER_USE_FUNCTIONAL
                     thing_resource->then();
+#endif
                 }
             }
         }
