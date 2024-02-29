@@ -103,7 +103,9 @@ private:
     unsigned long last_streaming_;
 
     // used for thenables (code after running a resource)
+#ifdef THINGER_USE_FUNCTIONAL
     std::function<void()> then_;
+#endif
 
 #ifdef THINGER_ENABLE_STREAM_LISTENER
 #ifdef THINGER_USE_FUNCTIONAL
@@ -302,6 +304,19 @@ public:
         callback_.pson_in_pson_out = pson_in_pson_out_function;
     }
 
+    /**
+     * Establish a function that will be called after executing the resource
+     */
+    void then(std::function<void()> then){
+        then_ = then;
+    }
+
+    /**
+     * Run the configured 'then' resource function, if any
+     */
+    void then(){
+        if(then_) then_();
+    }
 
 #ifdef THINGER_ENABLE_STREAM_LISTENER
     /**
@@ -318,20 +333,6 @@ public:
         return stream_listener_;
     }
 #endif
-
-    /**
-     * Establish a function that will be called after executing the resource
-     */
-    void then(std::function<void()> then){
-        then_ = then;
-    }
-
-    /**
-     * Run the configured 'then' resource function, if any
-     */
-    void then(){
-        if(then_) then_();
-    }
 
 #else
 

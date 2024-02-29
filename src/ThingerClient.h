@@ -28,6 +28,11 @@
 #include <Client.h>
 #include "thinger/thinger.h"
 
+// required for the reboot method (wdt_enable)
+#if defined(ARDUINO_ARCH_MEGAAVR) || defined(__AVR__)
+#include <avr/wdt.h>
+#endif
+
 using namespace protoson;
 
 #ifndef THINGER_SERVER
@@ -430,7 +435,12 @@ protected:
                 break;
         }
         #endif
+
+#ifdef THINGER_USE_FUNCTIONAL
         if(state_listener_) state_listener_(state);
+#else
+        if(state_listener_!=nullptr) state_listener_(state);
+#endif
     }
 
     bool handle_connection()
@@ -542,9 +552,15 @@ public:
         return root_ca_;
     }
 
+#ifdef THINGER_USE_FUNCTIONAL
     void set_state_listener(std::function<void(THINGER_STATE)> state_listener){
         state_listener_ = state_listener;
     }
+#else
+    void set_state_listener(void (*state_listener)(THINGER_STATE)){
+        state_listener_ = state_listener;
+    }
+#endif
 
     Client& get_client(){
         return client_;
@@ -558,7 +574,12 @@ private:
     const char* device_password_;
     const char* host_;
     const char* root_ca_;
+#ifdef THINGER_USE_FUNCTIONAL
     std::function<void(THINGER_STATE)> state_listener_;
+#else
+    void (*state_listener_)(THINGER_STATE) = nullptr;
+#endif
+
 #ifndef THINGER_DISABLE_OUTPUT_BUFFER
     uint8_t * out_buffer_;
     size_t out_size_;
