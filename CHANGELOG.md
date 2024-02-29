@@ -5,6 +5,7 @@
 
 2.26.0
 
+- Added CMakeLists for integration with ESP-IDF as component
 - Add ThingerClient methods to detect socket connection failures to improve network reconnection mechanisms
 - Improve BC66
 - Improve MKRNB1500
