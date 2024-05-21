@@ -1,3 +1,7 @@
+2.28.0
+
+- Initial support for ESP32 Ethernet connection over TLS
+
 2.27.0
 
 - Fix compiling issues for AVR
