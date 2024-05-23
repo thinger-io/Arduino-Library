@@ -1,3 +1,11 @@
+2.29.0
+
+#### ESP32 Ethernet 
+- Improve ESP32 Ethernet TLS support by using stock Arduino WiFiClientSecure
+- Fix ESP32 log events related to Ethernet link status
+- Update ESP32 Ethernet default example including OTA support
+- Allow using THINGER_INSECURE_SSL definition to allow using self-signed certificates on ESP32 Ethernet
+
 2.28.0
 
 - Initial support for ESP32 Ethernet connection over TLS
