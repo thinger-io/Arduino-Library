@@ -37,22 +37,22 @@ public:
 
          WiFi.onEvent([](WiFiEvent_t event){
             switch (event) {
-                case SYSTEM_EVENT_ETH_START:
+                case ARDUINO_EVENT_ETH_START:
                     THINGER_DEBUG("NETWORK", "ETH Started");
                     break;
-                case SYSTEM_EVENT_ETH_CONNECTED:
+                case ARDUINO_EVENT_ETH_CONNECTED:
                     THINGER_DEBUG("NETWORK", "ETH Connected");
                     break;
-                case SYSTEM_EVENT_ETH_GOT_IP:
+                case ARDUINO_EVENT_ETH_GOT_IP:
                     THINGER_DEBUG_VALUE("NETWORK", "ETH MAC: ", ETH.macAddress());
                     THINGER_DEBUG_VALUE("NETWORK", "ETH IP: ", ETH.localIP());
                     THINGER_DEBUG_VALUE("NETWORK", "ETH FullDuplex: ", ETH.fullDuplex());
                     THINGER_DEBUG_VALUE("NETWORK", "ETH LinkSpeed: ", ETH.linkSpeed());
                     break;
-                case SYSTEM_EVENT_ETH_DISCONNECTED:
+                case ARDUINO_EVENT_ETH_DISCONNECTED:
                     THINGER_DEBUG("NETWORK", "ETH Disconnected");
                     break;
-                case SYSTEM_EVENT_ETH_STOP:
+                case ARDUINO_EVENT_ETH_STOP:
                     THINGER_DEBUG("NETWORK", "ETH Stopped");
                     break;
                 default:
