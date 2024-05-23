@@ -1,30 +1,33 @@
 // It may be required to define this according to your specific board
-// This example works for Olimex ESP32-PoE-ISO
-
-//#define ETH_PHY_ADDR 0
-#define ETH_CLK_MODE ETH_CLOCK_GPIO17_OUT
-//#define ETH_PHY_TYPE ETH_PHY_LAN8720
-#define ETH_PHY_POWER 12
-//#define ETH_PHY_MDC 23
-//#define ETH_PHY_MDIO 18
-//#define ETH_CLK_MODE ETH_CLOCK_GPIO0_IN
+// Example RMII LAN8720 (Olimex, etc.)
+#ifndef ETH_PHY_TYPE
+#define ETH_PHY_TYPE  ETH_PHY_LAN8720
+#define ETH_PHY_ADDR  0
+#define ETH_PHY_MDC   23
+#define ETH_PHY_MDIO  18
+#define ETH_PHY_POWER -1
+#define ETH_CLK_MODE  ETH_CLOCK_GPIO0_IN
+#endif
 
 // enable debug output over serial
 #define THINGER_SERIAL_DEBUG
 
+// disable certificate validation
+// #define THINGER_INSECURE_SSL
+
 // define private server instance
-//#define THINGER_SERVER "acme.aws.thinger.io"
-
-// TLS connection requires SSLClientESP32 library from
-// https://github.com/alkonosst/SSLClientESP32
-
-// disable TLS connection by default
-#define _DISABLE_TLS_
+// #define THINGER_SERVER "acme.aws.thinger.io"
 
 #include <ThingerESP32Eth.h>
+#include <ThingerESP32OTA.h>
 #include "arduino_secrets.h"
 
+// initialize thinger instance
 ThingerESP32Eth thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
+
+// Initialize ESP32OTA OTA
+// use Thinger.io VSCode Studio extension + Platformio to upgrade the device remotely
+ThingerESP32OTA ota(thing);
 
 void setup() {
 
