@@ -7,7 +7,7 @@
 ThingerESP32 thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
 
 // Initialize ESP32OTA OTA
-// use Thinger.io VSCode Studio extension + Platformio to upgrade the device remotelly
+// use Thinger.io VSCode Studio extension + Platformio to upgrade the device remotely
 ThingerESP32OTA ota(thing);
 
 void setup() {

@@ -7,7 +7,7 @@
 ThingerESP8266 thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
 
 // Initialize ESP8266 OTA
-// use Thinger.io VSCode Studio extension + Platformio to upgrade the device remotelly
+// use Thinger.io VSCode Studio extension + Platformio to upgrade the device remotely
 ThingerESP8266OTA ota(thing);
 
 void setup() {
