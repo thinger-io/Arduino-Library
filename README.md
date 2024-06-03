@@ -11,6 +11,7 @@ It supports multiple network interfaces like Ethernet, Wifi, and GSM. So you can
 * Arduino Nano RP2040 Connect (OTA Support)
 * Arduino Nano 33 IoT (OTA Support)
 * Arduino Portenta H7 (OTA Support)
+* Arduino Opta (OTA Support)
 * Arduino MKR 1010 (OTA Support)
 * Arduino MKR NB 1500 (OTA Support)
 * Arduino MKR 1000 
@@ -40,7 +41,7 @@ Please, refer to the following page for a full documentation of the Arduino Clie
 
 ## License
 
-<img align="right" src="https://opensource.org/trademarks/opensource/OSI-Approved-License-100x137.png">
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/License_icon-mit.svg/128px-License_icon-mit.svg.png">
 
 The class is licensed under the [MIT License](http://opensource.org/licenses/MIT):
 
