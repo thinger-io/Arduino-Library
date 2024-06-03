@@ -26,7 +26,7 @@ void setup() {
   // resource output example (i.e. reading a sensor value, a variable, etc)
   thing["millis"] >> outputValue(millis());
 
-  // start thinger task
+  // start thinger on its own task
   thing.start();
 
   // more details at http://docs.thinger.io/arduino/
@@ -34,5 +34,6 @@ void setup() {
 
 void loop() {
   // use loop as in normal Arduino Sketch
-  // use thing.lock() thing.unlock() if using variables exposed on thinger resources
+  // use thing.lock() thing.unlock() when using/modifying variables exposed on thinger resources
+  delay(1000);
 }
