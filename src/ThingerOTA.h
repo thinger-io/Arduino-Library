@@ -3,24 +3,62 @@
 
 #include "ThingerClient.h"
 
+#ifndef THINGER_OTA_MD5_VERIFICATION
+#define THINGER_OTA_MD5_VERIFICATION 1
+#endif
+
 #if THINGER_OTA_MD5_VERIFICATION
 #include "util/md5.h"
+#endif
+
+#define STRINGIFY(s) STRINGIFY1(s)
+#define STRINGIFY1(s) #s
+
+#ifndef THINGER_OTA_VERSION
+#define THINGER_OTA_VERSION ""
+#endif
+
+const char version_marker[] = "@(#)" STRINGIFY(THINGER_OTA_VERSION);
+
+#if THINGER_OTA_MD5_VERIFICATION && THINGER_OTA_COMPRESSION
+#define THINGER_OTA_COMPRESSION_VERIFICATION 1
 #endif
 
 class ThingerOTA{
 
 public:
 
-    ThingerOTA(ThingerClient& client){
+    ThingerOTA(ThingerClient& client)
+    {
 
         // resource for configuring ota options
         client["$ota"]["options"] >> [&](pson& options){
+            // set enabled status
             options["enabled"] = is_enabled();
+
+            // set required block size
             options["block_size"] = get_block_size();
+
+            // set OTA timeout
             options["timeout"] = timeout_;
+
+            // set version
+            options["version"] = version_marker+4;
+
+#if THINGER_OTA_COMPRESSION
+            // set supported compression
+            const char * compression = supported_compression();
+            if(strcmp(compression, "")!=0){
+                options["compression"] = compression;
+            }
+#endif
+
 #if THINGER_OTA_MD5_VERIFICATION
+            // set supported checksum
             options["checksum"] = "md5";
-#endif 
+#endif
+
+            // fill additional options
             fill_options(options);
         };
 
@@ -31,10 +69,10 @@ public:
                 return;
             }
 
-            const char* firmware   = in["firmware"];
-            const char* version    = in["version"];
-            firmware_size_         = in["size"];
-            size_t chunk_size      = in["chunk_size"];
+            const char* firmware    = in["firmware"];
+            const char* version     = in["version"];
+            firmware_size_          = in["size"];
+            size_t chunk_size       = in["chunk_size"];
             firmware_offset_ = 0;
 
             THINGER_DEBUG("OTA", "Received OTA request...");
@@ -42,16 +80,58 @@ public:
             THINGER_DEBUG_VALUE("OTA", "Firmware Size: ", firmware_size_);
             THINGER_DEBUG_VALUE("OTA", "Chunk Size: ", chunk_size);
 
-#if THINGER_OTA_MD5_VERIFICATION
-            // use checksum if provided in the begin options. ESP32 uses original checksum 
-            // for the verification, as it will write firmware after deflated in memory
-            const char* checksum = in["checksum"];
-            if(strlen(checksum)==32){
-                THINGER_DEBUG_VALUE("OTA", "MD5 checksum: ", checksum);
-                md5_checksum_ = checksum;
-                MD5::MD5Init(&md5_ctx_);
+            #if THINGER_OTA_MD5_VERIFICATION
+            {
+                // use checksum if provided in the begin options.
+                const char* checksum = in["checksum"];
+                if(strlen(checksum)==32){
+                    THINGER_DEBUG_VALUE("OTA", "MD5 checksum: ", checksum);
+                    md5_checksum_ = checksum;
+                    MD5::MD5Init(&md5_ctx_);
+                }
             }
-#endif
+            #endif
+
+            #if THINGER_OTA_COMPRESSION
+            {
+                // ensure compression is supported and
+                const char* compression = in["compression"];
+
+                if(strcmp(compression, "")!=0){
+                    const char * supported = supported_compression();
+                    if(strcmp(compression, supported)!=0) {
+                        THINGER_DEBUG_VALUE("OTA", "Unsupported Compression: ", compression);
+                        out["success"] = false;
+                        out["error"] = "Unsupported compression";
+                        return;
+                    }
+
+                    // get compressed size
+                    firmware_compressed_size_ = in["compressed_size"];
+                    if(firmware_compressed_size_==0){
+                        THINGER_DEBUG("OTA", "Invalid compressed size");
+                        out["success"] = false;
+                        out["error"] = "Invalid compressed size";
+                        return;
+                    }
+
+                    // log compression information
+                    THINGER_DEBUG_VALUE("OTA", "Compression ", compression);
+                    THINGER_DEBUG_VALUE("OTA", "Compression Size: ", firmware_compressed_size_);
+
+                    // initialize compression checksum
+                    #if THINGER_OTA_MD5_VERIFICATION
+                        // use compressed checksum if provided in the begin options.
+                        const char* compressed_checksum = in["compressed_checksum"];
+                        if(strlen(compressed_checksum)==32){
+                            THINGER_DEBUG_VALUE("OTA", "Compression MD5 Checksum: ", firmware_compressed_size_);
+                            md5_compressed_checksum_ = compressed_checksum;
+                            MD5::MD5Init(&md5_compressed_ctx_);
+                        }
+                    #endif
+                }
+            }
+            #endif
 
             THINGER_DEBUG("OTA", "Initializing update...");
 
@@ -88,7 +168,7 @@ public:
 
                     // call client handle to allow incoming requests
                     client.handle();
-                    
+
                     // if there is progress while running ota... everything is ok
                     auto current_remaining = remaining();
                     if(last_remaining!=current_remaining){
@@ -108,7 +188,7 @@ public:
                 if(!succeed_){
                     THINGER_DEBUG("OTA", "OTA update failed... Restarting device");
                     client.reboot();
-                }            
+                }
             }
         });
 
@@ -144,8 +224,11 @@ public:
 
             if(success){
                 firmware_offset_ += size;
-#if THINGER_OTA_MD5_VERIFICATION
-                MD5::MD5Update(&md5_ctx_, (uint8_t*)buffer, size);
+
+#if THINGER_OTA_COMPRESSION_VERIFICATION
+                firmware_compressed_size_ ? update_compressed_checksum((uint8_t*)buffer, size) : update_firmware_checksum((uint8_t*)buffer, size);
+#elif THINGER_OTA_MD5_VERIFICATION
+                update_firmware_checksum((uint8_t*)buffer, size);
 #endif
             }
 
@@ -184,22 +267,21 @@ public:
             bool result = true;
 
 #if THINGER_OTA_MD5_VERIFICATION
-            unsigned char hash[16] = {0};
-            MD5::MD5Final(hash, &md5_ctx_);
-            String md5_hash = "";
-            md5_hash.reserve(32);
-            for(auto i=0; i<16; i++){
-                if(hash[i]<=15) md5_hash += '0';
-                md5_hash += String(hash[i], HEX);
+            // verify checksum
+            {
+#if THINGER_OTA_COMPRESSION
+                // if compression is supported and enabled, verify compressed checksum
+                bool checksum_result = firmware_compressed_size_ ? verify_checksum(md5_compressed_ctx_, md5_compressed_checksum_) :
+                        verify_checksum(md5_ctx_, md5_checksum_);
+#else
+                bool checksum_result = verify_checksum(md5_ctx_, md5_checksum_);
+#endif
+                if(!checksum_result){
+                    out["error"] = "Invalid MD5 checksum";
+                    reset_ota();
+                    result = false;
+                }
             }
-            THINGER_DEBUG_VALUE("OTA", "Computed MD5: ", md5_hash);
-            if(!md5_hash.equalsIgnoreCase(md5_checksum_)){
-                out["error"] = "Invalid MD5 checksum";
-                THINGER_DEBUG("OTA", "Invalid MD5 checksum");
-                reset_ota();
-                result = false;
-            }
-            THINGER_DEBUG("OTA", "MD5 verification succeed!");
 #endif
 
             result = result && end_ota(out);
@@ -221,6 +303,11 @@ public:
             client.reboot();
         });
 
+        // resource for getting current firmware version
+        client["$ota"]["version"] >> [this](pson& out){
+            out["version"] = version_marker+4;
+        };
+
     }
 
     ~ThingerOTA(){
@@ -228,10 +315,9 @@ public:
     }
 
     void set_block_size(size_t size){
-        THINGER_DEBUG_VALUE("OTA", "Setting OTA block size: ", size);
+        //THINGER_DEBUG_VALUE("OTA", "Setting OTA block size: ", size);
         block_size_ = size;
     }
-
 
     void set_timeout(size_t timeout){
         timeout_ = timeout;
@@ -240,6 +326,12 @@ public:
     bool is_enabled(){
         return enabled_;
     }
+
+#if THINGER_OTA_COMPRESSION
+    bool is_compressed(){
+        return firmware_compressed_size_>0;
+    }
+#endif
 
     void set_enabled(bool enabled){
         enabled_ = enabled;
@@ -266,9 +358,56 @@ protected:
         return true;
     }
 
-    virtual size_t remaining(){
-        return firmware_size_ - firmware_offset_;
+#if THINGER_OTA_MD5_VERIFICATION
+    bool verify_checksum(MD5_CTX& md5_ctx, String& md5_checksum){
+        unsigned char hash[16] = {0};
+        MD5::MD5Final(hash, &md5_ctx);
+        String md5_hash = "";
+        md5_hash.reserve(32);
+        for(auto i=0; i<16; i++){
+            if(hash[i]<=15) md5_hash += '0';
+            md5_hash += String(hash[i], HEX);
+        }
+        THINGER_DEBUG_VALUE("OTA", "Computed MD5: ", md5_hash);
+        if(!md5_hash.equalsIgnoreCase(md5_checksum)){
+            THINGER_DEBUG("OTA", "Invalid MD5 checksum");
+            return false;
+        }else{
+            THINGER_DEBUG("OTA", "MD5 verification succeed!");
+            return true;
+        }
     }
+#endif
+
+#if THINGER_OTA_COMPRESSION
+    virtual const char* supported_compression(){
+        return "";
+    }
+#endif
+
+    virtual size_t remaining(){
+#if THINGER_OTA_COMPRESSION
+        return firmware_compressed_size_ ?
+            firmware_compressed_size_ - firmware_offset_ :
+            firmware_size_ - firmware_offset_;
+#else
+        return firmware_size_ - firmware_offset_;
+#endif
+    }
+
+#if THINGER_OTA_MD5_VERIFICATION
+    // update checksum for the firmware
+    void update_firmware_checksum(uint8_t* buffer, size_t bytes){
+        MD5::MD5Update(&md5_ctx_, buffer, bytes);
+    }
+#endif
+
+#if THINGER_OTA_COMPRESSION_VERIFICATION
+    // update checksum for the compressed firmware
+    void update_compressed_checksum(uint8_t* buffer, size_t bytes){
+        MD5::MD5Update(&md5_compressed_ctx_, buffer, bytes);
+    }
+#endif
 
     virtual bool end_ota(pson& state){
         return true;
@@ -296,6 +435,15 @@ protected:
 #if THINGER_OTA_MD5_VERIFICATION
     MD5_CTX md5_ctx_;
     String md5_checksum_;
+#endif
+
+#if THINGER_OTA_COMPRESSION
+    bool compressed_        = false;
+    size_t firmware_compressed_size_   = 0;
+#if THINGER_OTA_COMPRESSION
+    MD5_CTX md5_compressed_ctx_;
+    String md5_compressed_checksum_;
+#endif
 #endif
 
 };
