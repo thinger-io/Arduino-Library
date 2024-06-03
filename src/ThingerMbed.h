@@ -37,7 +37,7 @@
 #include <WiFi.h>
 #endif
 
-// load SSL non-SSL client implamentations
+// load SSL non-SSL client implementations
 #ifdef _DISABLE_TLS_
 #include <WiFiClient.h>
 typedef WiFiClient MBEDClient;
@@ -76,6 +76,7 @@ public:
 
     bool stop(){
         if(running_){
+            THINGER_DEBUG("MBED_OS", "Stopping Thinger.io task...")
             running_ = false;
             thread_.join();
         }
