@@ -1,10 +1,14 @@
 #ifndef THINGER_ESP32OTA_H
 #define THINGER_ESP32OTA_H
 
+#ifndef THINGER_OTA_COMPRESSION
+#define THINGER_OTA_COMPRESSION 1
+#endif
+
 #include "ThingerOTA.h"
 #include <Update.h>
 
-#if THINGER_ESP32OTA_COMPRESSION
+#if THINGER_OTA_COMPRESSION
 #include "rom/miniz.h"
 #endif
 
@@ -28,11 +32,6 @@ public:
 
         // request a md5 checksum
         options["checksum"] = "md5";
-
-        // add gzip compression option if THINGER_ESP32OTA_UNCOMPRESSED is not defined
-#if THINGER_ESP32OTA_COMPRESSION
-        options["compression"] = "zlib";
-#endif
     }
 
     bool begin_ota(const char* firmware, const char* version, size_t size, pson& options, pson& state) override
@@ -61,19 +60,26 @@ public:
             Update.setMD5(md5_checksum_);
         }
 
-#if THINGER_ESP32OTA_COMPRESSION
-        // initialize compression parameters (0 disabled)
-        remaining_compressed_ = options["compressed_size"];
-        if(init && remaining_compressed_){
-            inflator_ = tinfl_decompressor{};
+#if THINGER_OTA_COMPRESSION
+        if(is_compressed()){
+            // initialize compression parameters (0 disabled)
+            remaining_compressed_ = options["compressed_size"];
+            if(init && remaining_compressed_){
+                inflator_ = tinfl_decompressor{};
+            }
         }
 #endif
 
         return init;
     }
 
-#if THINGER_ESP32OTA_COMPRESSION
+#if THINGER_OTA_COMPRESSION
     bool write_ota(uint8_t* buffer, size_t bytes, pson& state) override{
+        if(!is_compressed()){
+            // ensure the compression is enabled
+            return do_write(buffer, bytes, state);
+        }
+
         static uint8_t out_buf[32768];
         static uint8_t *next_out = out_buf;
         int status = TINFL_STATUS_NEEDS_MORE_INPUT;
@@ -98,6 +104,7 @@ public:
             size_t bytes_in_out_buf = next_out - out_buf;
             if (status == TINFL_STATUS_DONE || bytes_in_out_buf == sizeof(out_buf)) {
                 if(!do_write(out_buf, bytes_in_out_buf, state)) return false;
+                update_firmware_checksum(out_buf, bytes_in_out_buf);
                 next_out = out_buf;
             }
         } // while
@@ -129,7 +136,13 @@ public:
         return true;
     }
 
-protected: 
+protected:
+
+#if THINGER_OTA_COMPRESSION
+    const char* supported_compression() override{
+        return "zlib";
+    }
+#endif
 
     bool do_write(uint8_t* buffer, size_t bytes, pson& state){
         if(Update.write(buffer, bytes) != bytes){
@@ -141,7 +154,7 @@ protected:
 
 private:
     char md5_checksum_[33];
-#if THINGER_ESP32OTA_COMPRESSION
+#if THINGER_OTA_COMPRESSION
     size_t remaining_compressed_ = 0;
     tinfl_decompressor inflator_;
 #endif
