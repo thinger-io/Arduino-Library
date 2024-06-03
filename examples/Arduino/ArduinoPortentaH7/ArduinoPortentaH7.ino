@@ -1,31 +1,36 @@
 #define THINGER_SERIAL_DEBUG
 
 #include <ThingerMbed.h>
-#include <ThingerMbedOTA.h>
+#include <ThingerPortentaOTA.h>
 #include "arduino_secrets.h"
 
 ThingerMbed thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
-ThingerMbedOTA ota(thing);
+ThingerPortentaOTA ota(thing);
 
 void setup() {
-  // configure LED_BUILTIN for output
-  pinMode(LED_BUILTIN, OUTPUT);
+    // configure LED_BUILTIN for output
+    pinMode(LED_BUILTIN, OUTPUT);
 
-  // open serial for debugging
-  Serial.begin(115200);
+    // open serial for debugging
+    Serial.begin(115200);
 
-  // configure wifi network
-  thing.add_wifi(SSID, SSID_PASSWORD);
+    // configure wifi network
+    thing.add_wifi(SSID, SSID_PASSWORD);
 
-  // pin control example (i.e. turning on/off a light, a relay, etc)
-  thing["led"] << digitalPin(LED_BUILTIN);
+    // pin control example (i.e. turning on/off a light, a relay, etc)
+    thing["led"] << digitalPin(LED_BUILTIN);
 
-  // resource output example (i.e. reading a sensor value, a variable, etc)
-  thing["millis"] >> outputValue(millis());
+    // resource output example (i.e. reading a sensor value, a variable, etc)
+    thing["millis"] >> outputValue(millis());
 
-  // more details at http://docs.thinger.io/arduino/
+    // start thinger on its own task
+    thing.start();
+
+    // more details at http://docs.thinger.io/arduino/
 }
 
 void loop() {
-  thing.handle();
+    // use loop as in normal Arduino Sketch
+    // use thing.lock() thing.unlock() when using/modifying variables exposed on thinger resources
+    delay(1000);
 }
