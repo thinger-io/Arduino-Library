@@ -15,7 +15,7 @@
 #define STRINGIFY1(s) #s
 
 #ifndef THINGER_OTA_VERSION
-#define THINGER_OTA_VERSION ""
+#define THINGER_OTA_VERSION
 #endif
 
 const char version_marker[] = "@(#)" STRINGIFY(THINGER_OTA_VERSION);
