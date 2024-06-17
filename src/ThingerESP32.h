@@ -28,6 +28,7 @@
 #include "ThingerESP32FreeRTOS.h"
 #endif
 
+#include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include "ThingerWifi.h"
 
