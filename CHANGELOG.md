@@ -1,3 +1,13 @@
+## 2.31.0
+
+#### ESP32
+
+- **Fixed** compilation with newer Arduino Frameworks starting from version 3.0
+
+#### Arduino R4
+
+- **Added** initial support for Arduino R4 WiFi board. OTA support is not available yet.
+
 ## 2.30.0
 
 #### OTA
