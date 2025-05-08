@@ -15,11 +15,11 @@
 class ThingerESP32OTA : public ThingerOTA{
 
 public:
-    ThingerESP32OTA(ThingerClient& client) : 
+    ThingerESP32OTA(ThingerClient& client, size_t block_size=32768) : 
         ThingerOTA(client)
     {
         // initialize a default block size for esp32
-        set_block_size(32768);
+        set_block_size(block_size);
     }
 
     virtual ~ThingerESP32OTA(){
