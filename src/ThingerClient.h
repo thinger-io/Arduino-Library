@@ -297,8 +297,8 @@ protected:
         Serial.print(success ? F("OK") : F("FAIL"));
         Serial.println(F("]"));
         if(!success){
-            THINGER_DEBUG_VALUE("THINGER", "Expected:", size);
-            THINGER_DEBUG_VALUE("THINGER", "Wrote:", written);
+            THINGER_DEBUG_VALUE("THINGER", "Expected: ", size);
+            THINGER_DEBUG_VALUE("THINGER", "Wrote: ", written);
         }
 #endif
 
