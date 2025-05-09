@@ -1,3 +1,9 @@
+## 2.40.0
+
+#### NB-IOT CORE
+
+- **Added** initial support for [Thinger NB-IOT Core](https://docs.thinger.io/others/hardware/thinger32-nb-iot). A module based on BC660 using Narrowband Technology.
+
 ## 2.31.0
 
 #### ESP32
