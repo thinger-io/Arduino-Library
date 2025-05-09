@@ -276,7 +276,7 @@ namespace thinger{
          * @param data data to write defined in a pson structure
          * @return
          */
-        bool write_bucket(const char* bucket_id, pson& data, bool confirm_write=false){
+        bool write_bucket(const char* bucket_id, pson& data, bool confirm_write=true){
             thinger_message message;
             message.set_signal_flag(thinger_message::BUCKET_DATA);
             message.set_identifier(bucket_id);
@@ -290,7 +290,7 @@ namespace thinger{
          * @param resource_name resource defined in the code, i.e., thing["location"]
          * @return
          */
-        bool write_bucket(const char* bucket_id, thinger_resource& resource, bool confirm_write=false){
+        bool write_bucket(const char* bucket_id, thinger_resource& resource, bool confirm_write=true){
             thinger_message message;
             message.set_signal_flag(thinger_message::BUCKET_DATA);
             message.set_identifier(bucket_id);
@@ -304,7 +304,7 @@ namespace thinger{
          * @param resource_name resource identifier defined in the code, i.e, "location"
          * @return
          */
-        bool write_bucket(const char* bucket_id, const char* resource_name, bool confirm_write=false){
+        bool write_bucket(const char* bucket_id, const char* resource_name, bool confirm_write=true){
             return write_bucket(bucket_id, resources_[resource_name], confirm_write);
         }
 
