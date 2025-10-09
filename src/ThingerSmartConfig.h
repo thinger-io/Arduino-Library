@@ -61,6 +61,12 @@ protected:
         // try to connect to the last known Wifi Network
         if(WiFi.SSID()!=NULL){
             THINGER_DEBUG_VALUE("NETWORK", "Trying to connect to the last known network: ", WiFi.SSID());
+
+            // Modes that fix Fatal exception 28(LoadProhibitedCause)  (https://github.com/thinger-io/Arduino-Library/issues/28)
+            WiFi.persistent(false);
+            WiFi.mode(WIFI_OFF);
+            WiFi.mode(WIFI_STA);
+
             unsigned long wifi_timeout = millis();
             WiFi.begin(WiFi.SSID().c_str(), WiFi.psk().c_str());
             while(WiFi.status() != WL_CONNECTED && (millis() - wifi_timeout < WIFI_CONNECTION_TIMEOUT_MS)) {
@@ -77,6 +83,9 @@ protected:
         if(WiFi.status() != WL_CONNECTED){
             unsigned long wifi_timeout = millis();
             THINGER_DEBUG("NETWORK", "Waiting Smart Config...");
+            WiFi.persistent(false);
+            WiFi.mode(WIFI_OFF);
+            WiFi.mode(WIFI_STA);
             WiFi.stopSmartConfig();
             WiFi.beginSmartConfig();
             while(!WiFi.smartConfigDone()) {
