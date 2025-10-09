@@ -1,3 +1,9 @@
+## 2.41.0
+
+#### OTA
+
+- **Added** support for configurable OTA timeout. Devices can now receive and apply timeout values from the VSCode extension during OTA initialization, allowing per-device timeout configuration for operations over slow connections (GSM/GPRS).
+
 ## 2.40.0
 
 #### NB-IOT CORE

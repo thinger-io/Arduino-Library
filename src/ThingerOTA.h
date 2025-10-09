@@ -75,6 +75,13 @@ public:
             size_t chunk_size       = in["chunk_size"];
             firmware_offset_ = 0;
 
+            // update timeout if provided from server (in milliseconds)
+            size_t timeout = in["timeout"];
+            if(timeout > 0){
+                timeout_ = timeout;
+                THINGER_DEBUG_VALUE("OTA", "Timeout updated to (ms): ", timeout_);
+            }
+
             THINGER_DEBUG("OTA", "Received OTA request...");
             THINGER_DEBUG_VALUE("OTA", "Firmware: ", firmware);
             THINGER_DEBUG_VALUE("OTA", "Firmware Size: ", firmware_size_);
