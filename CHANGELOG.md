@@ -1,3 +1,15 @@
+## 2.41.0
+
+#### OTA
+
+- **Added** support for configurable OTA timeout. Devices can now receive and apply timeout values from the VSCode extension during OTA initialization, allowing per-device timeout configuration for operations over slow connections (GSM/GPRS).
+
+## 2.40.0
+
+#### NB-IOT CORE
+
+- **Added** initial support for [Thinger NB-IOT Core](https://docs.thinger.io/others/hardware/thinger32-nb-iot). A module based on BC660 using Narrowband Technology.
+
 ## 2.31.0
 
 #### ESP32
