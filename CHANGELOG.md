@@ -1,3 +1,14 @@
+## 2.44.0
+
+#### General
+
+- **Added** `thing.get_state()`, which returns the last connection state reported to the state listener (i.e., `ThingerClient::THINGER_AUTHENTICATED` when the device is online) ([#52](https://github.com/thinger-io/Arduino-Library/issues/52)).
+- **Fixed** `multiple definition of CA_ROOT_CERTIFICATE` when the library is included from several source files ([#41](https://github.com/thinger-io/Arduino-Library/issues/41)).
+
+#### TinyGSM
+
+- **Fixed** `ThingerTinyGSM` with `THINGER_FREE_RTOS` on ESP32: it now supports `thing.start()` to run in its own FreeRTOS task, as `ThingerESP32` ([#50](https://github.com/thinger-io/Arduino-Library/issues/50)).
+
 ## 2.43.2
 
 #### Console

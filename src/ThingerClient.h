@@ -40,18 +40,18 @@ using namespace protoson;
     #ifndef THINGER_SERVER
         #define THINGER_SERVER "iot.thinger.io"
     #endif
-    auto CA_ROOT_CERTIFICATE = THINGER_ROOT_CA;
+    static const char* const CA_ROOT_CERTIFICATE = THINGER_ROOT_CA;
 #elif defined(__AVR__)
     // AVR boards do not use TLS and keep string literals in RAM, so they skip the CA root certificate
     #ifndef THINGER_SERVER
         #define THINGER_SERVER "iot.thinger.io"
     #endif
-    auto CA_ROOT_CERTIFICATE = (const char*) nullptr;
+    static const char* const CA_ROOT_CERTIFICATE = nullptr;
 #elif !defined(THINGER_SERVER)
     #define THINGER_SERVER "iot.thinger.io"
     // CA root certificate from community servers
     // USERTrust RSA - Valid to January 18, 2038
-    auto CA_ROOT_CERTIFICATE = R"(-----BEGIN CERTIFICATE-----
+    static const char* const CA_ROOT_CERTIFICATE = R"(-----BEGIN CERTIFICATE-----
 MIIF3jCCA8agAwIBAgIQAf1tMPyjylGoG7xkDjUDLTANBgkqhkiG9w0BAQwFADCB
 iDELMAkGA1UEBhMCVVMxEzARBgNVBAgTCk5ldyBKZXJzZXkxFDASBgNVBAcTC0pl
 cnNleSBDaXR5MR4wHAYDVQQKExVUaGUgVVNFUlRSVVNUIE5ldHdvcmsxLjAsBgNV
@@ -88,7 +88,7 @@ jjxDah2nGN59PRbxYvnKkKj9
 #else
     // Anty other private instance goes over LetsEncrypt
     // ISRG Root X1 - Valid To: June 4, 2035
-    auto CA_ROOT_CERTIFICATE = R"(-----BEGIN CERTIFICATE-----
+    static const char* const CA_ROOT_CERTIFICATE = R"(-----BEGIN CERTIFICATE-----
 MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
 TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
 cmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDEwHhcNMTUwNjA0MTEwNDM4
@@ -398,6 +398,7 @@ protected:
     }
 
     virtual void thinger_state_listener(THINGER_STATE state){
+        state_ = state;
         #ifdef _DEBUG_
         switch(state){
             case NETWORK_CONNECTING:
@@ -537,6 +538,11 @@ public:
         return result;
     }
 
+    // last connection state reported to the state listener
+    THINGER_STATE get_state() const{
+        return state_;
+    }
+
     void set_credentials(const char* username, const char* device_id, const char* device_password){
         username_ = username;
         device_id_ = device_id;
@@ -589,6 +595,7 @@ private:
     const char* device_password_;
     const char* host_;
     const char* root_ca_;
+    THINGER_STATE state_ = SOCKET_DISCONNECTED;
 #ifdef THINGER_USE_FUNCTIONAL
     std::function<void(THINGER_STATE)> state_listener_;
 #else

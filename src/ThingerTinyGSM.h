@@ -25,16 +25,29 @@
 #ifndef THINGER_TINY_GSM_H
 #define THINGER_TINY_GSM_H
 
+#ifdef THINGER_FREE_RTOS
+#include "ThingerESP32FreeRTOS.h"
+#endif
+
 #include "ThingerClient.h"
 
 #define NETWORK_REGISTER_TIMEOUT 15000
 #define NETWORK_GPRS_TIMEOUT 15000
 
-class ThingerTinyGSM : public ThingerClient {
+class ThingerTinyGSM : public ThingerClient
+
+#ifdef THINGER_FREE_RTOS
+,public ThingerESP32FreeRTOS
+#endif
+
+{
 
 public:
     ThingerTinyGSM(const char* user, const char* device, const char* device_credential, Stream& serial) :
         ThingerClient(client_, user, device, device_credential),
+        #ifdef THINGER_FREE_RTOS
+        ThingerESP32FreeRTOS(static_cast<ThingerClient&>(*this)),
+        #endif
         modem_(serial),
         client_(modem_)
     {
