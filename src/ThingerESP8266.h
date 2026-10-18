@@ -45,17 +45,14 @@ class ThingerESP8266 : public ThingerWifiClient<WiFiClient>{
 public:
     ThingerESP8266(const char* user, const char* device, const char* device_credential) :
             ThingerWifiClient(user, device, device_credential)
-#ifndef _DISABLE_TLS_
-#ifndef THINGER_INSECURE_SSL
-        ,x509(get_root_ca())
-#endif
-#endif
     {
         
     }
 
     ~ThingerESP8266(){
-
+#if !defined(_DISABLE_TLS_) && !defined(THINGER_INSECURE_SSL)
+        delete x509_;
+#endif
     }
 
 #ifndef _DISABLE_TLS_
@@ -101,7 +98,13 @@ protected:
         client_.setInsecure();
         THINGER_DEBUG("SSL/TLS", "Warning: TLS/SSL certificate will not be checked!")
 #else
-        client_.setTrustAnchors(&x509);
+        // load the CA root certificate when connecting, so set_root_ca() can change it
+        if(x509_==nullptr || x509_ca_!=get_root_ca()){
+            delete x509_;
+            x509_ca_ = get_root_ca();
+            x509_ = new BearSSL::X509List(x509_ca_);
+        }
+        client_.setTrustAnchors(x509_);
         if(!set_clock()) return false;
 #endif
         return client_.connect(get_host(), THINGER_SSL_PORT);
@@ -113,7 +116,8 @@ protected:
 
 #ifndef THINGER_INSECURE_SSL
     private:
-        BearSSL::X509List x509;
+        BearSSL::X509List* x509_ = nullptr;
+        const char* x509_ca_ = nullptr;
 #endif
 
 #endif

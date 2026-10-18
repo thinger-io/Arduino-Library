@@ -1,3 +1,9 @@
+## 2.43.1
+
+#### ESP8266 / Raspberry Pi Pico W
+
+- **Fixed** `set_root_ca()` had no effect on ESP8266 and Pico W / Pico 2 W when called in `setup()`, as the certificate was loaded when constructing `thing`. Now it is loaded when connecting.
+
 ## 2.43.0
 
 #### WiFi
