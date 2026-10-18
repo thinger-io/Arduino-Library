@@ -14,8 +14,9 @@ void setup() {
   thing.add_wifi(SSID, SSID_PASSWORD);
   // add more networks calling add_wifi again: it connects to the strongest one
   // thing.add_wifi("other_ssid", "other_password");
-  // WPA2-Enterprise networks (PEAP), i.e., eduroam
-  // thing.add_wifi_enterprise("eduroam", "user@domain", "password");
+  // WPA2-Enterprise networks (PEAP), i.e., eduroam. Pass the CA certificate of the authentication
+  // server (provided by your organization) as the last parameter to validate it
+  // thing.add_wifi_enterprise("eduroam", "user@domain", "password", "anonymous@domain", EDUROAM_CA);
 
   // digital pin control example (i.e. turning on/off a light, a relay, configuring a parameter, etc)
   thing["GPIO_16"] << digitalPin(16);

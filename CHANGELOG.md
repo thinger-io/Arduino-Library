@@ -1,5 +1,10 @@
 ## 2.43.1
 
+#### WiFi
+
+- **Added** an optional `ca_pem` parameter to `add_wifi_enterprise()` (ESP32): the CA certificate of the authentication server. With it, the device validates the server and does not send the credentials to a fake access point with the same SSID. Without it, the server is not validated (WiFiMulti does not support it). Only one enterprise network can use it, and the device tries the other networks if it cannot connect.
+- **Changed** the identity of `add_wifi_enterprise()` defaults to the username when empty, as most authentication servers require an outer identity.
+
 #### ESP8266 / Raspberry Pi Pico W
 
 - **Fixed** `set_root_ca()` had no effect on ESP8266 and Pico W / Pico 2 W when called in `setup()`, as the certificate was loaded when constructing `thing`. Now it is loaded when connecting.

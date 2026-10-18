@@ -56,6 +56,24 @@ protected:
     virtual bool connect_network(){
         unsigned long wifi_timeout = millis();
 
+#if defined(ESP32) && CONFIG_ESP_WIFI_ENTERPRISE_SUPPORT
+        // enterprise network that validates the authentication server (WiFiMulti cannot validate it)
+        if(enterprise_ssid_!=nullptr){
+            THINGER_DEBUG_VALUE("NETWORK", "Connecting to enterprise network ", enterprise_ssid_);
+            WiFi.begin(enterprise_ssid_, WPA2_AUTH_PEAP, enterprise_identity_, enterprise_username_, enterprise_password_, enterprise_ca_);
+            while(WiFi.status()!=WL_CONNECTED && millis()-wifi_timeout<30000) delay(100);
+            if(WiFi.status()!=WL_CONNECTED){
+                THINGER_DEBUG("NETWORK", "Cannot connect to the enterprise network");
+                // try the other networks, if any
+                if(wifi_networks_==0) return false;
+                WiFi.disconnect();
+                wifi_timeout = millis();
+            }
+        }
+        if(enterprise_ssid_!=nullptr && WiFi.status()==WL_CONNECTED){
+            THINGER_DEBUG_VALUE("NETWORK", "Connected to network ", WiFi.SSID());
+        }else
+#endif
 #ifdef THINGER_WIFI_MULTI
         // several networks (or an enterprise one): scan and connect to the strongest known network
         if(wifi_networks_>1 || wifi_enterprise_){
@@ -119,9 +137,21 @@ public:
     }
 
 #if defined(ESP32) && CONFIG_ESP_WIFI_ENTERPRISE_SUPPORT
-    // WPA2-Enterprise network with PEAP/EAP-MSCHAPv2. The anonymous identity can be empty if not required
-    void add_wifi_enterprise(const char* ssid, const char* username, const char* password, const char* identity="")
+    // WPA2-Enterprise network with PEAP/EAP-MSCHAPv2, i.e., eduroam. The (outer) identity is the username
+    // if empty. ca_pem is the CA certificate of the authentication server: without it, the device does not
+    // validate the server and could send the credentials to a fake access point with the same SSID
+    void add_wifi_enterprise(const char* ssid, const char* username, const char* password, const char* identity="", const char* ca_pem=nullptr)
     {
+        if(identity==nullptr || strlen(identity)==0) identity = username;
+        // validating the server requires a direct connection (only one network can use it)
+        if(ca_pem!=nullptr && enterprise_ssid_==nullptr){
+            enterprise_ssid_ = ssid;
+            enterprise_username_ = username;
+            enterprise_password_ = password;
+            enterprise_identity_ = identity;
+            enterprise_ca_ = ca_pem;
+            return;
+        }
         if(wifi_multi_.addAP(ssid, password, username, identity)){
             wifi_networks_++;
             wifi_enterprise_ = true;
@@ -137,6 +167,13 @@ protected:
     THINGER_WIFI_MULTI wifi_multi_;
     uint8_t wifi_networks_ = 0;
     bool wifi_enterprise_ = false;
+#endif
+#if defined(ESP32) && CONFIG_ESP_WIFI_ENTERPRISE_SUPPORT
+    const char* enterprise_ssid_ = nullptr;
+    const char* enterprise_username_ = nullptr;
+    const char* enterprise_password_ = nullptr;
+    const char* enterprise_identity_ = nullptr;
+    const char* enterprise_ca_ = nullptr;
 #endif
 };
 
