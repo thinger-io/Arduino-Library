@@ -14,6 +14,8 @@ void setup() {
 
   // add WiFi credentials
   thing.add_wifi(SSID, SSID_PASSWORD);
+  // add more networks calling add_wifi again: it connects to the strongest one
+  // thing.add_wifi("other_ssid", "other_password");
 
   // digital pin control example (i.e. turning on/off a light, a relay, configuring a parameter, etc)
   thing["led"] << digitalPin(LED_BUILTIN);

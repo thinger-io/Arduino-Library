@@ -1,5 +1,10 @@
 ## 2.43.0
 
+#### WiFi
+
+- **Added** several WiFi networks on ESP32, ESP8266 and Raspberry Pi Pico W / Pico 2 W: call `add_wifi()` once per network, and the device connects to the strongest known one (also when it reconnects). With a single network it connects directly, as before, so hidden networks keep working.
+- **Added** `add_wifi_enterprise(ssid, username, password, identity)` for WPA2-Enterprise networks (PEAP/EAP-MSCHAPv2, i.e., eduroam) on ESP32 with Arduino core 3.x.
+
 #### General
 
 - **Added** `THINGER_ROOT_CA` to define at compile time the CA root certificate (PEM) used to validate the server, i.e., for instances with their own CA. Define it before including the library; it takes precedence over the default certificates. `set_root_ca()` keeps changing it at runtime.

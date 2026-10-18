@@ -26,6 +26,15 @@
 
 #include "ThingerClient.h"
 
+// ESP32, ESP8266 and the Arduino-Pico core can keep several networks and connect to the strongest one
+#if defined(ESP8266)
+    #include <ESP8266WiFiMulti.h>
+    #define THINGER_WIFI_MULTI ESP8266WiFiMulti
+#elif defined(ESP32) || (defined(ARDUINO_ARCH_RP2040) && !defined(ARDUINO_ARCH_MBED))
+    #include <WiFiMulti.h>
+    #define THINGER_WIFI_MULTI WiFiMulti
+#endif
+
 template <class Client>
 class ThingerWifiClient : public ThingerClient {
 
@@ -47,6 +56,17 @@ protected:
     virtual bool connect_network(){
         unsigned long wifi_timeout = millis();
 
+#ifdef THINGER_WIFI_MULTI
+        // several networks (or an enterprise one): scan and connect to the strongest known network
+        if(wifi_networks_>1 || wifi_enterprise_){
+            THINGER_DEBUG_VALUE("NETWORK", "Connecting to the strongest known network. Networks: ", wifi_networks_);
+            if(wifi_multi_.run()!=WL_CONNECTED){
+                THINGER_DEBUG("NETWORK", "Cannot connect to any known network");
+                return false;
+            }
+            THINGER_DEBUG_VALUE("NETWORK", "Connected to network ", WiFi.SSID());
+        }else
+#endif
         if(wifi_ssid_!=nullptr){
             THINGER_DEBUG_VALUE("NETWORK", "Connecting to network ", wifi_ssid_);
             WiFi.begin((char*)wifi_ssid_, (char*) wifi_password_);
@@ -86,16 +106,38 @@ protected:
 
 public:
 
+    // ESP32, ESP8266 and Pico W accept several networks (call it once per network)
     void add_wifi(const char* ssid, const char* password=nullptr)
     {
+#ifdef THINGER_WIFI_MULTI
+        if(wifi_multi_.addAP(ssid, password)) wifi_networks_++;
+        // a single network connects directly, without scanning, so it can be a hidden network
+        if(wifi_ssid_!=nullptr) return;
+#endif
         wifi_ssid_ = ssid;
         wifi_password_ = password;
     }
+
+#if defined(ESP32) && CONFIG_ESP_WIFI_ENTERPRISE_SUPPORT
+    // WPA2-Enterprise network with PEAP/EAP-MSCHAPv2. The anonymous identity can be empty if not required
+    void add_wifi_enterprise(const char* ssid, const char* username, const char* password, const char* identity="")
+    {
+        if(wifi_multi_.addAP(ssid, password, username, identity)){
+            wifi_networks_++;
+            wifi_enterprise_ = true;
+        }
+    }
+#endif
 
 protected:
     Client client_;
     const char* wifi_ssid_ = nullptr;
     const char* wifi_password_ = nullptr;
+#ifdef THINGER_WIFI_MULTI
+    THINGER_WIFI_MULTI wifi_multi_;
+    uint8_t wifi_networks_ = 0;
+    bool wifi_enterprise_ = false;
+#endif
 };
 
 #define ThingerWifi ThingerWifiClient<WiFiClient>
