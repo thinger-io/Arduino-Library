@@ -29,6 +29,7 @@ void setup() {
   Serial.begin(115200);
   pinMode(LED_PIN, OUTPUT);
 
+  // call add_wifi() again to add more networks: it connects to the strongest one
   thing.add_wifi("wifi_ssid", "wifi_password");
 
   // control the LED from the platform
