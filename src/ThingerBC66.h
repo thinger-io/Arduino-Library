@@ -104,12 +104,14 @@ protected:
                 Ql_Sleep(30000);
                 // reset device
                 Dev.reset();
+                set_error(NETWORK_REGISTRATION_DENIED);
                 return false;
             }
 
             // other ? i.e., 2, searching, or 0. reboot device if timed out
             if(millis() - network_timeout > 300000){
                 Dev.reset();
+                set_error(NETWORK_NOT_REGISTERED);
                 return false;
             }
 

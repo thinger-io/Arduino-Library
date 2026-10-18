@@ -35,6 +35,14 @@
 
 using namespace protoson;
 
+// the connection state can be read from another core (i.e., with THINGER_FREE_RTOS on ESP32)
+#if defined(ESP32)
+#include <atomic>
+#define THINGER_ATOMIC(T) std::atomic<T>
+#else
+#define THINGER_ATOMIC(T) T
+#endif
+
 #if defined(THINGER_ROOT_CA)
     // CA root certificate (PEM) defined in the sketch, i.e., for instances with their own CA
     #ifndef THINGER_SERVER
@@ -174,6 +182,21 @@ public:
         THINGER_AUTHENTICATED,
         THINGER_AUTH_FAILED,
         THINGER_STOP_REQUEST
+    };
+
+    // reason of the last NETWORK_CONNECT_ERROR, see get_error()
+    enum THINGER_ERROR{
+        ERROR_NONE,                     // the network is connected
+        ERROR_UNKNOWN,                  // the network client does not report the reason
+        NETWORK_NOT_CONFIGURED,         // no WiFi network or APN configured
+        NETWORK_NOT_FOUND,              // the WiFi network is not available
+        NETWORK_AUTH_ERROR,             // the WiFi network rejected the connection (i.e., wrong password)
+        NETWORK_NO_IP,                  // connected to the network, but without IP address (DHCP)
+        MODEM_NOT_RESPONDING,           // the modem does not answer
+        MODEM_SIM_ERROR,                // the SIM card cannot be used (i.e., wrong PIN)
+        NETWORK_NOT_REGISTERED,         // the modem is not registered in the network (i.e., no coverage)
+        NETWORK_REGISTRATION_DENIED,    // the operator rejected the registration (i.e., disabled SIM)
+        NETWORK_APN_ERROR               // registered, but the data connection cannot be opened (APN)
     };
 
     ThingerClient(Client& client, const char* user, const char* device, const char* device_credential) :
@@ -378,6 +401,11 @@ protected:
 #endif
     }
 
+    // network clients set the reason of a failed connect_network()
+    void set_error(THINGER_ERROR error){
+        error_ = error;
+    }
+
     virtual void run_reboot(){
         THINGER_DEBUG("THINGER", "Rebooting device...");
         #if defined(ARDUINO_ARCH_MEGAAVR)
@@ -467,10 +495,14 @@ protected:
         // client is not connected, so check underlying network
         if(!network_connected()){
             thinger_state_listener(NETWORK_CONNECTING);
+            error_ = ERROR_NONE;
             if(!connect_network()){
+                // network clients set the reason with set_error() before failing
+                if(error_==ERROR_NONE) error_ = ERROR_UNKNOWN;
                 thinger_state_listener(NETWORK_CONNECT_ERROR);
                 return false;
             }
+            error_ = ERROR_NONE;
             thinger_state_listener(NETWORK_CONNECTED);
         }
 
@@ -538,9 +570,14 @@ public:
         return result;
     }
 
-    // last connection state reported to the state listener
+    // last connection state reported to the state listener (it can be read from any task)
     THINGER_STATE get_state() const{
         return state_;
+    }
+
+    // reason of the last NETWORK_CONNECT_ERROR, or ERROR_NONE once the network is connected
+    THINGER_ERROR get_error() const{
+        return error_;
     }
 
     void set_credentials(const char* username, const char* device_id, const char* device_password){
@@ -595,7 +632,8 @@ private:
     const char* device_password_;
     const char* host_;
     const char* root_ca_;
-    THINGER_STATE state_ = SOCKET_DISCONNECTED;
+    THINGER_ATOMIC(THINGER_STATE) state_{SOCKET_DISCONNECTED};
+    THINGER_ATOMIC(THINGER_ERROR) error_{ERROR_NONE};
 #ifdef THINGER_USE_FUNCTIONAL
     std::function<void(THINGER_STATE)> state_listener_;
 #else

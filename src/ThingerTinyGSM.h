@@ -66,6 +66,7 @@ protected:
     virtual bool connect_network(){
         if(apn_==nullptr) {
             THINGER_DEBUG("NETWORK", "Cannot connect without setting the APN!")
+            set_error(NETWORK_NOT_CONFIGURED);
             return false;
         }
 
@@ -75,6 +76,7 @@ protected:
             THINGER_DEBUG("NETWORK", "Initializing Modem...")
             if(!modem_.restart()){
                 THINGER_DEBUG("NETWORK", "Cannot init modem! Is it connected?")
+                set_error(MODEM_NOT_RESPONDING);
                 return false;
             }else{
                 THINGER_DEBUG_VALUE("NETWORK", "Modem Info: ", modem_.getModemInfo());
@@ -84,6 +86,7 @@ protected:
                     THINGER_DEBUG_VALUE("NETWORK", "Unlocking SIM... ", pin_)
                     if(!modem_.simUnlock(pin_)){
                         THINGER_DEBUG("NETWORK", "Cannot unlock SIM!")
+                        set_error(MODEM_SIM_ERROR);
                         return false;
                     }
                 }
@@ -91,6 +94,7 @@ protected:
                 THINGER_DEBUG("NETWORK", "Waiting for Network...")
                 if(!modem_.waitForNetwork(NETWORK_REGISTER_TIMEOUT)) {
                     THINGER_DEBUG("NETWORK", "Cannot connect network!")
+                    set_error(NETWORK_NOT_REGISTERED);
                     return false;
                 }
                 THINGER_DEBUG("NETWORK", "Network Connected!")
@@ -101,6 +105,7 @@ protected:
             THINGER_DEBUG("NETWORK", "Connecting to APN...")
             if (!modem_.gprsConnect(apn_, user_, password_)) {
                 THINGER_DEBUG("NETWORK", "Cannot connect to APN!")
+                set_error(NETWORK_APN_ERROR);
                 return false;
             }
         }

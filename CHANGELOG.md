@@ -1,3 +1,13 @@
+## 2.45.0
+
+#### General
+
+- **Added** `thing.get_error()`, the reason of the last `NETWORK_CONNECT_ERROR`, or `ThingerClient::ERROR_NONE` once the network is connected ([#53](https://github.com/thinger-io/Arduino-Library/issues/53)). It can be read from the state listener or anytime:
+  - WiFi (ESP32, ESP8266, Pico W and other WiFi boards): `NETWORK_NOT_CONFIGURED`, `NETWORK_NOT_FOUND`, `NETWORK_AUTH_ERROR` (usually a wrong password), `NETWORK_NO_IP`. WebConfig reports `NETWORK_NOT_CONFIGURED` if the config portal ends without configuring the WiFi.
+  - Cellular (TinyGSM, NB-IoT Core, BC66, MKR NB 1500, MKR GSM 1400): `NETWORK_NOT_CONFIGURED` (no APN), `MODEM_NOT_RESPONDING`, `MODEM_SIM_ERROR`, `NETWORK_NOT_REGISTERED` (i.e., no coverage), `NETWORK_REGISTRATION_DENIED`, `NETWORK_APN_ERROR`, depending on what each modem reports.
+  - Other failures, or clients that don't report the reason: `ERROR_UNKNOWN`.
+- **Changed** the connection state (`get_state()`) and error (`get_error()`) are atomic on ESP32, so they can be read from another task or core (i.e., with `THINGER_FREE_RTOS`) without `thing.lock()`.
+
 ## 2.44.0
 
 #### General

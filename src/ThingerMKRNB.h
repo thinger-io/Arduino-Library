@@ -104,7 +104,10 @@ protected:
         // try to attach GPRS, synchronously
         bool gprsConnected = gprs_.attachGPRS(true) == GPRS_READY;
         THINGER_DEBUG_VALUE("___GPRS", "GPRS Connection: ", gprsConnected);
-        if(!gprsConnected) return false;
+        if(!gprsConnected){
+            set_error(NETWORK_APN_ERROR);
+            return false;
+        }
         THINGER_DEBUG_VALUE("NETWORK", "Got IP Address: ", gprs_.getIPAddress())
 
         return true;

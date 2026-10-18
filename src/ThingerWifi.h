@@ -56,6 +56,19 @@ protected:
     virtual bool connect_network(){
         unsigned long wifi_timeout = millis();
 
+#ifdef ESP32
+        // ESP32 retries by itself, so WiFi.status() loses the reason of a failed connection: keep it
+        if(!wifi_events_){
+            WiFi.onEvent([](arduino_event_id_t event, arduino_event_info_t info){
+                // keep the known reasons, as a generic one usually follows them
+                THINGER_ERROR error = wifi_reason_error(info.wifi_sta_disconnected.reason);
+                if(error!=ERROR_UNKNOWN) wifi_disconnect_error() = error;
+            }, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+            wifi_events_ = true;
+        }
+        wifi_disconnect_error() = ERROR_UNKNOWN;
+#endif
+
 #if defined(ESP32) && CONFIG_ESP_WIFI_ENTERPRISE_SUPPORT
         // enterprise network that validates the authentication server (WiFiMulti cannot validate it)
         if(enterprise_ssid_!=nullptr){
@@ -64,6 +77,7 @@ protected:
             while(WiFi.status()!=WL_CONNECTED && millis()-wifi_timeout<30000) delay(100);
             if(WiFi.status()!=WL_CONNECTED){
                 THINGER_DEBUG("NETWORK", "Cannot connect to the enterprise network");
+                set_wifi_error();
                 // try the other networks, if any
                 if(wifi_networks_==0) return false;
                 WiFi.disconnect();
@@ -80,6 +94,7 @@ protected:
             THINGER_DEBUG_VALUE("NETWORK", "Connecting to the strongest known network. Networks: ", wifi_networks_);
             if(wifi_multi_.run()!=WL_CONNECTED){
                 THINGER_DEBUG("NETWORK", "Cannot connect to any known network");
+                set_wifi_error();
                 return false;
             }
             THINGER_DEBUG_VALUE("NETWORK", "Connected to network ", WiFi.SSID());
@@ -98,12 +113,16 @@ protected:
         #else
         else{
             THINGER_DEBUG("NETWORK", "Cannot connect to WiFi. SSID not set!");
+            set_error(NETWORK_NOT_CONFIGURED);
             return false;
         }
         #endif
 
         while( WiFi.status() != WL_CONNECTED) {
-            if(millis() - wifi_timeout > 30000) return false;
+            if(millis() - wifi_timeout > 30000){
+                set_wifi_error();
+                return false;
+            }
             #ifdef ESP8266
             yield();
             #endif
@@ -113,13 +132,41 @@ protected:
         wifi_timeout = millis();
         THINGER_DEBUG("NETWORK", "Getting IP Address...");
         while (WiFi.localIP() == (IPAddress)INADDR_NONE) {
-            if(millis() - wifi_timeout > 30000) return false;
+            if(millis() - wifi_timeout > 30000){
+                set_error(NETWORK_NO_IP);
+                return false;
+            }
             #ifdef ESP8266
             yield();
             #endif
         }
         THINGER_DEBUG_VALUE("NETWORK", "Got IP Address: ", WiFi.localIP());
         return true;
+    }
+
+    // reason of a failed connection, from the status reported by the WiFi library
+    void set_wifi_error(){
+#ifdef ESP32
+        if(wifi_disconnect_error()!=ERROR_UNKNOWN){
+            set_error(wifi_disconnect_error());
+            return;
+        }
+#endif
+        switch(WiFi.status()){
+            case WL_NO_SSID_AVAIL:
+                set_error(NETWORK_NOT_FOUND);
+                break;
+            // the network rejected the connection, usually because of a wrong password
+            case WL_CONNECT_FAILED:
+#ifdef ESP8266
+            case WL_WRONG_PASSWORD:
+#endif
+                set_error(NETWORK_AUTH_ERROR);
+                break;
+            default:
+                set_error(ERROR_UNKNOWN);
+                break;
+        }
     }
 
 public:
@@ -163,6 +210,29 @@ protected:
     Client client_;
     const char* wifi_ssid_ = nullptr;
     const char* wifi_password_ = nullptr;
+#ifdef ESP32
+    // error of the last disconnection reported by the ESP32 WiFi events
+    static THINGER_ERROR& wifi_disconnect_error(){
+        static THINGER_ERROR error = ERROR_UNKNOWN;
+        return error;
+    }
+
+    static THINGER_ERROR wifi_reason_error(uint16_t reason){
+        switch(reason){
+            case WIFI_REASON_NO_AP_FOUND:
+                return NETWORK_NOT_FOUND;
+            case WIFI_REASON_AUTH_FAIL:
+            case WIFI_REASON_AUTH_EXPIRE:
+            case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT:
+            case WIFI_REASON_HANDSHAKE_TIMEOUT:
+                return NETWORK_AUTH_ERROR;
+            default:
+                return ERROR_UNKNOWN;
+        }
+    }
+
+    bool wifi_events_ = false;
+#endif
 #ifdef THINGER_WIFI_MULTI
     THINGER_WIFI_MULTI wifi_multi_;
     uint8_t wifi_networks_ = 0;

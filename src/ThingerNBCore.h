@@ -314,6 +314,7 @@ protected:
                 delay(30000);
                 // reset device
                 init_modem(true);
+                set_error(NETWORK_REGISTRATION_DENIED);
                 return false;
             }
 
@@ -323,6 +324,7 @@ protected:
                 THINGER_DEBUG("NETWORK", "Cannot connect network!")
                 // reset device
                 init_modem(true);
+                set_error(NETWORK_NOT_REGISTERED);
                 return false;
             }
 

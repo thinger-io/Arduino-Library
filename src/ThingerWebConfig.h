@@ -168,7 +168,12 @@ protected:
 
             if(config_callback_!=NULL) config_callback_(config);
             if(wifi_callback_!=NULL) wifi_callback_(wifiConnected);
-            return WiFi.status() == WL_CONNECTED;
+            if(WiFi.status() != WL_CONNECTED){
+                // the config portal finished without configuring the WiFi
+                this->set_error(ThingerClient::NETWORK_NOT_CONFIGURED);
+                return false;
+            }
+            return true;
         }
     }
 

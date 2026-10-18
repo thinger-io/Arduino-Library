@@ -60,6 +60,7 @@ protected:
         if(gsmConnected_){
             if(apn_==NULL){
                 THINGER_DEBUG("___GPRS", "APN was not set!")
+                set_error(NETWORK_NOT_CONFIGURED);
                 return false;
             }
             THINGER_DEBUG_VALUE("___GPRS", "Connecting to APN: ", apn_)
@@ -71,6 +72,7 @@ protected:
             while(gprs_.ready() == 0) {
                 if(millis() - timeout > GPRS_CONNECTION_TIMEOUT){
                     THINGER_DEBUG("___GPRS", "Cannot establish connection with APN!")
+                    set_error(NETWORK_APN_ERROR);
                     return false;
                 }
                 delay(100);
