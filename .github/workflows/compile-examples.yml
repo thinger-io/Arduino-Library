@@ -1,0 +1,257 @@
+name: compile-examples
+
+# Compiles the examples with arduino-cli for a matrix of boards. Pushes and pull requests
+# use the pinned core versions below; the weekly run also builds against the latest cores
+# and libraries, to detect when a new core release breaks the library. A version tag
+# (e.g. 2.41.1) publishes a GitHub release with its CHANGELOG section once everything
+# compiles; the Arduino Library Manager picks up new tags by itself.
+on:
+  push:
+    branches: ['**']
+    tags: ['[0-9]+.[0-9]+.[0-9]+']
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 4 * * 1'
+
+permissions:
+  contents: read
+
+env:
+  # Libraries required by the examples, pinned (the weekly "latest" run installs the newest)
+  LIBRARIES: |
+    WiFiNINA@2.0.1
+    WiFi101@0.16.1
+    WiFi@1.2.7
+    Adafruit CC3000 Library@1.0.4
+    Bridge@1.7.0
+    MKRGSM@1.5.0
+    MKRNB@1.6.0
+    Ethernet@2.0.2
+    UIPEthernet@2.0.12
+    Arduino_LSM6DS3@1.0.3
+    WiFiManager@2.0.17
+    StreamDebugger@1.0.1
+  # TinyGSM fork with Quectel BC660 support (Thinger NB-IoT Core), pinned to a commit
+  TINYGSM_GIT: https://github.com/alvarolb/TinyGSM.git#309860823435bd46f3111e13757db2ee4dab72dd
+  BOARD_MANAGER_URLS: >-
+    https://espressif.github.io/arduino-esp32/package_esp32_index.json
+    https://arduino.esp8266.com/stable/package_esp8266com_index.json
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: arduino/arduino-lint-action@v2
+        with:
+          library-manager: update
+          compliance: specification
+
+  compile:
+    name: ${{ matrix.board.name }} (${{ matrix.cores }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        cores: ${{ fromJSON(github.event_name == 'schedule' && '["pinned","latest"]' || '["pinned"]') }}
+        board:
+          - name: UNO
+            fqbn: arduino:avr:uno
+            core: arduino:avr@1.8.8
+            sketches: >-
+              examples/Arduino/ArduinoEthernet
+              examples/Arduino/ArduinoENC28J60
+              examples/Arduino/ArduinoWifi
+              examples/ESP8266/ESP8266AT
+          - name: Mega 2560
+            fqbn: arduino:avr:mega
+            core: arduino:avr@1.8.8
+            sketches: >-
+              examples/Arduino/ArduinoCC3000
+              examples/Arduino/ArduinoTinyGSM
+              examples/ESP8266/ESP8266AT
+          - name: Yun
+            fqbn: arduino:avr:yun
+            core: arduino:avr@1.8.8
+            sketches: examples/Arduino/ArduinoYun
+          - name: MKR WiFi 1010
+            fqbn: arduino:samd:mkrwifi1010
+            core: arduino:samd@1.8.14
+            sketches: examples/Arduino/ArduinoMKR1010
+          - name: Nano 33 IoT
+            fqbn: arduino:samd:nano_33_iot
+            core: arduino:samd@1.8.14
+            sketches: examples/Arduino/ArduinoNano33IOT
+          - name: MKR1000
+            fqbn: arduino:samd:mkr1000
+            core: arduino:samd@1.8.14
+            sketches: examples/Arduino/ArduinoMKR1000
+          - name: MKR NB 1500
+            fqbn: arduino:samd:mkrnb1500
+            core: arduino:samd@1.8.14
+            sketches: examples/Arduino/ArduinoMKRNB1500
+          - name: MKR GSM 1400
+            fqbn: arduino:samd:mkrgsm1400
+            core: arduino:samd@1.8.14
+            sketches: examples/Arduino/ArduinoGSM1400
+          - name: UNO R4 WiFi
+            fqbn: arduino:renesas_uno:unor4wifi
+            core: arduino:renesas_uno@1.6.0
+            sketches: examples/Arduino/ArduinoR4Wifi
+          - name: Nano RP2040 Connect
+            fqbn: arduino:mbed_nano:nanorp2040connect
+            core: arduino:mbed_nano@4.6.0
+            sketches: examples/Arduino/ArduinoNanoRP2040
+          - name: Portenta H7
+            fqbn: arduino:mbed_portenta:envie_m7
+            core: arduino:mbed_portenta@4.3.1
+            sketches: >-
+              examples/Arduino/ArduinoPortentaH7
+              examples/Arduino/ArduinoPortentaH7Ethernet
+          - name: Opta
+            fqbn: arduino:mbed_opta:opta
+            core: arduino:mbed_opta@4.6.0
+            sketches: >-
+              examples/Arduino/ArduinoOptaWiFi
+              examples/Arduino/ArduinoOptaEthernet
+          - name: Nano ESP32 (core 2.x)
+            fqbn: arduino:esp32:nano_nora
+            core: arduino:esp32@2.0.18-arduino.5
+            sketches: >-
+              examples/ESP32/ESP32
+              examples/ESP32/ESP32OTA
+          - name: ESP32
+            fqbn: esp32:esp32:esp32
+            core: esp32:esp32@3.3.12
+            sketches: >-
+              examples/ESP32/ESP32
+              examples/ESP32/ESP32Eth
+              examples/ESP32/ESP32OTA
+              examples/ESP32/ESP32RTOS
+              examples/ESP32/ESP32WebConfig
+              examples/Thinger/NBCore
+          - name: ESP32-S3
+            fqbn: esp32:esp32:esp32s3
+            core: esp32:esp32@3.3.12
+            sketches: >-
+              examples/ESP32/ESP32
+              examples/ESP32/ESP32OTA
+          - name: ESP32-C3
+            fqbn: esp32:esp32:esp32c3
+            core: esp32:esp32@3.3.12
+            sketches: >-
+              examples/ESP32/ESP32
+              examples/ESP32/ESP32OTA
+          - name: ESP32-C6
+            fqbn: esp32:esp32:esp32c6
+            core: esp32:esp32@3.3.12
+            sketches: >-
+              examples/ESP32/ESP32
+              examples/ESP32/ESP32OTA
+          - name: NodeMCU (ESP8266)
+            fqbn: esp8266:esp8266:nodemcuv2
+            core: esp8266:esp8266@3.1.2
+            sketches: >-
+              examples/ESP8266/ESP8266
+              examples/ESP8266/ESP8266OTA
+              examples/ESP8266/ESP8266SmartConfig
+              examples/ESP8266/ESP8266WebConfig
+              examples/Sonoff/SonoffTouch
+    env:
+      ARDUINO_DIRECTORIES_DATA: ${{ github.workspace }}/.arduino/data
+      ARDUINO_DIRECTORIES_USER: ${{ github.workspace }}/.arduino/user
+      ARDUINO_LIBRARY_ENABLE_UNSAFE_INSTALL: 'true'
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: arduino/setup-arduino-cli@v2
+
+      - name: Core and cache key
+        id: core
+        run: |
+          core="${{ matrix.board.core }}"
+          if [ "${{ matrix.cores }}" = "latest" ]; then
+            core="${core%@*}"
+            # refresh the latest cores every week
+            echo "key=arduino-${core//:/-}-latest-$(date +%G-%V)-${{ hashFiles('.github/workflows/compile-examples.yml') }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "key=arduino-${core//[:@]/-}-${{ hashFiles('.github/workflows/compile-examples.yml') }}" >> "$GITHUB_OUTPUT"
+          fi
+          echo "core=$core" >> "$GITHUB_OUTPUT"
+
+      - name: Cache cores and libraries
+        uses: actions/cache@v4
+        with:
+          path: .arduino
+          key: ${{ steps.core.outputs.key }}
+
+      - name: Install core and libraries
+        run: |
+          urls=$(echo $BOARD_MANAGER_URLS | tr ' ' ',')
+          arduino-cli config init --overwrite --additional-urls "$urls"
+          arduino-cli core update-index
+          arduino-cli core install "${{ steps.core.outputs.core }}"
+          echo "$LIBRARIES" | while IFS= read -r lib; do
+            [ -z "$lib" ] && continue
+            [ "${{ matrix.cores }}" = "latest" ] && lib="${lib%@*}"
+            arduino-cli lib install "$lib"
+          done
+          arduino-cli lib install --git-url "$TINYGSM_GIT"
+          arduino-cli core list
+          arduino-cli lib list
+
+      - name: Compile examples
+        run: |
+          failed=""
+          echo "### ${{ matrix.board.name }} (\`${{ matrix.board.fqbn }}\`, ${{ matrix.cores }} cores)" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Sketch | Result | Flash | RAM |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          for sketch in ${{ matrix.board.sketches }}; do
+            echo "::group::$sketch"
+            if arduino-cli compile --fqbn "${{ matrix.board.fqbn }}" --library . --warnings default "$sketch" 2>&1 | tee build.log; then
+              result="✅"
+            else
+              result="❌"; failed="$failed $sketch"
+            fi
+            flash=$(grep -o 'Sketch uses [0-9]* bytes ([0-9]*%)' build.log | grep -o '[0-9]*%' || true)
+            ram=$(grep -o 'Global variables use [0-9]* bytes ([0-9]*%)' build.log | grep -o '[0-9]*%' || true)
+            echo "| \`$sketch\` | $result | $flash | $ram |" >> "$GITHUB_STEP_SUMMARY"
+            echo "::endgroup::"
+          done
+          if [ -n "$failed" ]; then
+            echo "::error::Failed to compile:$failed"
+            exit 1
+          fi
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [lint, compile]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check library.properties version
+        run: |
+          version=$(sed -n 's/^version=//p' library.properties)
+          if [ "$version" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::library.properties has version $version, tag is ${GITHUB_REF_NAME}"
+            exit 1
+          fi
+
+      - name: Release notes from CHANGELOG
+        run: |
+          awk -v v="## ${GITHUB_REF_NAME}" '$0==v{found=1; next} /^## /{if(found) exit} found' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "::error::CHANGELOG.md has no section for ${GITHUB_REF_NAME}"
+            exit 1
+          fi
+          cat notes.md
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --notes-file notes.md --verify-tag
