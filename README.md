@@ -1,57 +1,89 @@
-[![arduino-library-badge](https://www.ardu-badge.com/badge/thinger.io.svg?)](https://docs.thinger.io/sdk-setup)
+# Thinger.io Arduino Library
 
-The Arduino Client Library is an easy to use client library to connect your IoT devices to the [Thinger.io](https://thinger.io "Thinger.io IoT Cloud Platform") IoT platform using IOTMP protocol. This is a library specifically designed for the Arduino IDE/Platformio, so you can easily install it in your environment and start connecting your devices within minutes.
+[![Compile examples](https://github.com/thinger-io/Arduino-Library/actions/workflows/compile-examples.yml/badge.svg)](https://github.com/thinger-io/Arduino-Library/actions/workflows/compile-examples.yml)
+[![Release](https://img.shields.io/github/v/release/thinger-io/Arduino-Library)](https://github.com/thinger-io/Arduino-Library/releases)
+[![Arduino Library Manager](https://www.ardu-badge.com/badge/thinger.io.svg?)](https://www.ardu-badge.com/thinger.io)
+[![PlatformIO Registry](https://badges.registry.platformio.org/packages/thinger-io/library/thinger.io.svg)](https://registry.platformio.org/libraries/thinger-io/thinger.io)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-## Supported Boards
+Connect your Arduino devices to the [Thinger.io](https://thinger.io "Thinger.io IoT Cloud Platform") IoT platform with the IOTMP protocol. Define the resources of your device (sensors to read, outputs to switch, data to stream) in a few lines, and use them from the console, dashboards, the REST API or buckets. Over TLS, with remote OTA updates on most boards.
 
-It supports multiple network interfaces like Ethernet, Wifi, and GSM. So you can use it in several devices like the following:
+## Installation
 
-* Espressif ESP8266 (OTA Support)
-* Espressif ESP32, ESP32-S2, ESP32-S3, ESP32-C3, ESP32-C5, ESP32-C6 and ESP32-P4 (Ethernet), including Arduino Nano ESP32 and Seeed XIAO ESP32 (OTA Support)
-* Raspberry Pi Pico W and Pico 2 W (OTA Support)
-* Arduino UNO R4 WiFi (experimental OTA Support)
-* Arduino UNO Q (through the Linux side, with Arduino_RouterBridge)
-* Arduino Nano RP2040 Connect (OTA Support)
-* Arduino Nano 33 IoT (OTA Support)
-* Arduino Portenta H7 (OTA Support)
-* Arduino Opta (OTA Support)
-* Arduino MKR 1010 (OTA Support)
-* Arduino MKR NB 1500 (OTA Support)
-* Arduino MKR 1000 
-* Arduino GSM1400 (MKRGSM)
-* Arduino + Ethernet
-* Arduino + Wifi
-* Arduino + Adafruit CC3000
-* Arduino + ENC28J60
-* Arduino Yun
-* Arduino + GPRS Shield
-* Arduino + TinyGSM library for GSM modems using GPRS (SIM800, SIM900, AI-THINKER A6, A6C, A7, Neoway M590)
-* Arduino + ESP8266 as WiFi Modem via AT commands (using TinyGSM library)
-* Texas Instruments CC3200
-* SeeedStudio LinkIt ONE (Both GPRS and WiFi)
+- **Arduino IDE**: search for `thinger.io` in the Library Manager.
+- **arduino-cli**: `arduino-cli lib install thinger.io`
+- **PlatformIO**: add `thinger-io/thinger.io` to `lib_deps` in `platformio.ini`.
 
-## OTA (Over the Internet)
+## Quick start
 
-Some devices can be directly updated remotely over the Internet (OTA). Thinger.io provides a Visual Studio Code extension for the OTA process, from building the firmware, flashing over the Internet, to remotely rebooting the device. More details [here](https://marketplace.visualstudio.com/items?itemName=thinger-io.thinger-io).
+```cpp
+#define THINGER_SERIAL_DEBUG
 
-![](https://s3.eu-west-1.amazonaws.com/thinger.io.files/vscode/iot-ota.gif)
+#include <ThingerESP32.h>
+
+#define LED_PIN 2 // built-in LED of most ESP32 DevKit boards
+
+ThingerESP32 thing("username", "deviceId", "deviceCredential");
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(LED_PIN, OUTPUT);
+
+  thing.add_wifi("wifi_ssid", "wifi_password");
+
+  // control the LED from the platform
+  thing["led"] << digitalPin(LED_PIN);
+
+  // read a value from the platform
+  thing["millis"] >> outputValue(millis());
+}
+
+void loop() {
+  thing.handle();
+}
+```
+
+Every board has its own example in [`examples/`](examples), also available in the Arduino IDE under *File > Examples > thinger.io*.
+
+## Supported boards
+
+Each board family uses its own header. Every board in this table is compiled on every change by the [CI](.github/workflows/compile-examples.yml), with the pinned cores and every week with the latest ones.
+
+| Boards | Header | Connectivity | OTA |
+|---|---|---|---|
+| ESP32, ESP32-S2, S3, C3, C5, C6, Arduino Nano ESP32, Seeed XIAO ESP32 | `ThingerESP32.h` | WiFi | `ThingerESP32OTA.h` |
+| ESP32 with Ethernet, ESP32-P4 | `ThingerESP32Eth.h` | Ethernet | `ThingerESP32OTA.h` |
+| ESP8266 | `ThingerESP8266.h` | WiFi | `ThingerESP8266OTA.h` |
+| Raspberry Pi Pico W, Pico 2 W ([Arduino-Pico](https://github.com/earlephilhower/arduino-pico) core) | `ThingerPicoW.h` | WiFi | `ThingerPicoOTA.h` |
+| Arduino UNO R4 WiFi | `ThingerR4WiFi.h` | WiFi | `ThingerR4OTA.h` (experimental) |
+| Arduino UNO Q | `ThingerUnoQ.h` | Through the Linux side ([Arduino_RouterBridge](https://github.com/arduino-libraries/Arduino_RouterBridge)) | |
+| Arduino Nano 33 IoT, MKR WiFi 1010 | `ThingerWiFiNINA.h` | WiFi | `ThingerWiFiNINAOTA.h` |
+| Arduino Nano RP2040 Connect | `ThingerMbed.h` | WiFi | `ThingerMbedOTA.h` |
+| Arduino Portenta H7, Opta | `ThingerMbed.h`, `ThingerMbedEth.h` | WiFi, Ethernet | `ThingerPortentaOTA.h` |
+| Arduino MKR NB 1500 | `ThingerMKRNB.h` | NB-IoT, LTE-M | `ThingerMKRNBOTA.h` |
+| Arduino MKR GSM 1400 | `ThingerMKRGSM.h` | 2G, 3G | |
+| Arduino MKR1000 | `ThingerWifi101.h` | WiFi | |
+| Thinger NB-IoT Core (BC660) | `ThingerNBCore.h` | NB-IoT | `ThingerESP32OTA.h` |
+| Any board with a cellular modem supported by [TinyGSM](https://github.com/vshymanskyy/TinyGSM) | `ThingerTinyGSM.h` | 2G, LTE-M, NB-IoT | |
+| Any board with an ESP8266 as WiFi modem (AT commands) | `ThingerESP8266AT.h` | WiFi | |
+| Arduino with Ethernet shield (W5100/W5500) | `ThingerEthernet.h` | Ethernet | |
+| Arduino with ENC28J60 | `ThingerENC28J60.h` | Ethernet | |
+| Arduino Yún | `ThingerYun.h` | WiFi, Ethernet | |
+
+**Legacy** (discontinued hardware, kept for compatibility): Adafruit CC3000 (`ThingerCC3000.h`) and the Arduino WiFi shield (`ThingerWifi.h`), still compiled on CI; Texas Instruments CC3200 with Energia and LinkIt ONE (`ThingerLinkItOneWifi.h`, `ThingerLinkItOneGPRS.h`), whose cores are no longer available.
+
+## OTA updates
+
+The boards with an OTA header can be updated remotely over the Internet. The [Thinger.io extension for Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=thinger-io.thinger-io) builds the firmware with PlatformIO, sends it to the device (compressed when the board supports it) and reboots it.
+
+![OTA with Visual Studio Code](https://s3.eu-west-1.amazonaws.com/thinger.io.files/vscode/iot-ota.gif)
 
 ## Documentation
 
-Please, refer to the following page for a full documentation of the Arduino Client Library.
+Full documentation of the library, the boards and the platform: [docs.thinger.io](https://docs.thinger.io/devices/arduino).
 
-[Arduino Client Library Documentation](http://docs.thinger.io/arduino/)
+Changes of every version: [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
-<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/License_icon-mit.svg/128px-License_icon-mit.svg.png">
-
-The class is licensed under the [MIT License](http://opensource.org/licenses/MIT):
-
-Copyright &copy; [Thinger.io](http://thinger.io)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+MIT License. Copyright &copy; [Thinger.io](https://thinger.io). See [LICENSE](LICENSE).
