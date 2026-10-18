@@ -190,7 +190,7 @@ void MD5::MD5Update(void *ctxBuf, const void *data, size_t size)
 	if ((ctx->lo = (saved_lo + size) & 0x1fffffff) < saved_lo) {
 		ctx->hi++;
 	}
-	ctx->hi += size >> 29;
+	ctx->hi += (MD5_u32plus) size >> 29;
 
 	used = saved_lo & 0x3f;
 

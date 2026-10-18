@@ -120,7 +120,11 @@ public:
         pin_ = pin;
     }
 
+#ifdef THINGER_USE_FUNCTIONAL
     void setModuleReset(std::function<void()> module_reset){
+#else
+    void setModuleReset(void (*module_reset)()){
+#endif
         module_reset_ = module_reset;
     }
 
@@ -135,7 +139,11 @@ private:
 #else
     TinyGsmClientSecure client_;
 #endif
+#ifdef THINGER_USE_FUNCTIONAL
     std::function<void()> module_reset_;
+#else
+    void (*module_reset_)() = nullptr;
+#endif
 
 };
 

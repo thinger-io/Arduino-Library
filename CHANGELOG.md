@@ -1,3 +1,28 @@
+## 2.41.1
+
+#### General
+
+- **Added** GitHub Actions workflow that compiles the examples for a matrix of boards on every push, pull request and weekly (also against the latest cores).
+- **Fixed** `THINGER_USE_STATIC_MEMORY` had no effect: the library checked `THINGER_USE_STATIC__MEMORY` (double underscore), which is still accepted for backward compatibility. Define it as a build flag, as `ThingerClient.cpp` is compiled apart from the sketch.
+- **Fixed** `invertedDigitalPin` was not defined outside AVR and ESP8266 (ESP32, SAMD, Mbed, Renesas, etc.), and reported the opposite state when read.
+- **Fixed** RAM usage on AVR boards: the CA root certificate (about 2 KB) was copied to RAM even if AVR does not use TLS. Sketches like ArduinoYun or ESP8266AT on Arduino UNO fit again.
+
+#### ESP32
+
+- **Fixed** `ThingerESP32OTA` compilation with ESP32 Arduino core 3.3 (ESP-IDF 5.5), where `rom/miniz.h` moved to `miniz.h`. OTA compression keeps working on cores 2.x and 3.x.
+- **Fixed** `ThingerESP32Eth` compilation with ESP32 Arduino core 3.x, where `ETH.h` no longer includes `WiFi.h`.
+- **Fixed** `ESP32WebConfig` example on boards without `LED_BUILTIN`.
+- **Fixed** missing `arduino_secrets.h` in the Thinger NB-IoT Core example.
+
+#### TinyGSM
+
+- **Fixed** `ThingerESP8266AT` compilation with TinyGSM 0.11 and 0.12, by using the concrete `TinyGsmClient` class.
+- **Fixed** `ThingerTinyGSM` compilation on AVR boards, which do not provide `std::function` for `setModuleReset`.
+
+#### ESP8266
+
+- **Fixed** `SonoffTouch` example, updated to `ThingerESP8266WebConfig`.
+
 ## 2.41.0
 
 #### OTA
@@ -30,7 +55,7 @@
 
 #### OTA
 
-- **Added** support for defining `THINGER_FIRMWARE_VERSION` to set the firmware version on the device. This build flag allows the VSCode extension (from version 1.1.0) to skip updates on devices with the same firmware version.
+- **Added** support for defining `THINGER_OTA_VERSION` to set the firmware version on the device. This build flag allows the VSCode extension (from version 1.1.0) to skip updates on devices with the same firmware version.
 - **Improved** compressed/uncompressed checksum verification on OTA updates.
 
 #### Arduino Portenta/Opta Devices

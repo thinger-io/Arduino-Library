@@ -3,7 +3,7 @@
 #define THINGER_SERIAL_DEBUG
 
 // Requires WifiManager from Library Manager or https://github.com/tzapu/WiFiManager
-#include <ThingerWebConfig.h>
+#include <ThingerESP8266WebConfig.h>
 #include <ESP8266mDNS.h>
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
@@ -13,7 +13,7 @@
 #define RELAY_PIN 12
 #define LED_PIN 13
 
-ThingerWebConfig thing;
+ThingerESP8266WebConfig thing;
 Ticker ticker;
 
 unsigned long millisSinceChange = 0;

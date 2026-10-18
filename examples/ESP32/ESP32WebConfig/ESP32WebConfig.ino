@@ -4,6 +4,11 @@
 // At least version 2.0 (available on master)
 #include <ThingerESP32WebConfig.h>
 
+// some ESP32 boards do not define a built-in LED
+#ifndef LED_BUILTIN
+#define LED_BUILTIN 2
+#endif
+
 ThingerESP32WebConfig thing;
 
 void setup() {

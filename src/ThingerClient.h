@@ -35,7 +35,13 @@
 
 using namespace protoson;
 
-#ifndef THINGER_SERVER
+#if defined(__AVR__)
+    // AVR boards do not use TLS and keep string literals in RAM, so they skip the CA root certificate
+    #ifndef THINGER_SERVER
+        #define THINGER_SERVER "iot.thinger.io"
+    #endif
+    auto CA_ROOT_CERTIFICATE = (const char*) nullptr;
+#elif !defined(THINGER_SERVER)
     #define THINGER_SERVER "iot.thinger.io"
     // CA root certificate from community servers
     // USERTrust RSA - Valid to January 18, 2038
@@ -625,8 +631,9 @@ inline void digital_pin(protoson::pson& in, int pin, bool& current_state){
 }
 
 inline void inverted_digital_pin(protoson::pson& in, int pin, bool& current_state){
+    // current_state keeps the logical value, the pin level is its inverse
     if(in.is_empty()) {
-        in = !current_state;
+        in = current_state;
     }
     else{
         current_state = in;
@@ -666,7 +673,7 @@ inline void analog_pin(protoson::pson& in, int pin){
     static bool state = LOW;                        \
     digital_pin(in, PIN, state);                    \
 }
-#define inverted_digital_pin(PIN) [](pson& in){     \
+#define invertedDigitalPin(PIN) [](pson& in){       \
     static bool state = LOW;                        \
     inverted_digital_pin(in, PIN, state);           \
 }

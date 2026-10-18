@@ -4,7 +4,8 @@
 using namespace protoson;
 
 #ifndef THINGER_DO_NOT_INIT_MEMORY_ALLOCATOR
-    #ifndef THINGER_USE_STATIC__MEMORY
+    // THINGER_USE_STATIC__MEMORY (double underscore) is kept for backward compatibility
+    #if !defined(THINGER_USE_STATIC_MEMORY) && !defined(THINGER_USE_STATIC__MEMORY)
         dynamic_memory_allocator alloc;
     #else
         #ifndef THINGER_STATIC_MEMORY_SIZE

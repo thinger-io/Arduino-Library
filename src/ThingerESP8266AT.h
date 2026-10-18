@@ -68,7 +68,7 @@ public:
 
 protected:
     TinyGsm serial_;
-    TinyGsm::GsmClient client_;
+    TinyGsmClient client_;
     const char* wifi_ssid_;
     const char* wifi_password_;
 

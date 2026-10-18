@@ -5,6 +5,8 @@
 #include "ThingerESP32FreeRTOS.h"
 #endif
 
+// ESP32 core 3.x does not include WiFi.h from ETH.h (required for WiFi.onEvent)
+#include <WiFi.h>
 #include <ETH.h>
 #include <ThingerClient.h>
 

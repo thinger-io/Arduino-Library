@@ -9,7 +9,14 @@
 #include <Update.h>
 
 #if THINGER_OTA_COMPRESSION
+// ESP-IDF 5.5 (Arduino ESP32 core 3.3) exposes miniz.h directly from esp_rom/include
+#if __has_include("rom/miniz.h")
 #include "rom/miniz.h"
+#elif __has_include("miniz.h")
+#include "miniz.h"
+#else
+#error "miniz.h not found: define THINGER_OTA_COMPRESSION 0 to disable OTA compression"
+#endif
 #endif
 
 class ThingerESP32OTA : public ThingerOTA{
