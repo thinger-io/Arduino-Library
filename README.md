@@ -10,6 +10,7 @@ It supports multiple network interfaces like Ethernet, Wifi, and GSM. So you can
 * Espressif ESP32, ESP32-S2, ESP32-S3, ESP32-C3, ESP32-C5, ESP32-C6 and ESP32-P4 (Ethernet), including Arduino Nano ESP32 and Seeed XIAO ESP32 (OTA Support)
 * Raspberry Pi Pico W and Pico 2 W (OTA Support)
 * Arduino UNO R4 WiFi (OTA Support)
+* Arduino UNO Q (through the Linux side, with Arduino_RouterBridge)
 * Arduino Nano RP2040 Connect (OTA Support)
 * Arduino Nano 33 IoT (OTA Support)
 * Arduino Portenta H7 (OTA Support)

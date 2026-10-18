@@ -6,6 +6,10 @@
 - **Added** `ThingerPicoOTA`: OTA updates stored in LittleFS and applied by the core bootloader. Requires a Flash Size option with a file system large enough for the firmware. Optional gzip compression with `THINGER_OTA_COMPRESSION`.
 - **Added** device reboot on the Arduino-Pico core.
 
+#### Arduino UNO Q
+
+- **Added** `ThingerUnoQ` for the Arduino UNO Q: the sketch runs on the MCU (Arduino Zephyr core) and connects through the Linux side with the TCP client of [Arduino_RouterBridge](https://github.com/arduino-libraries/Arduino_RouterBridge). TLS is done on Linux (TLS 1.3).
+
 #### Arduino UNO R4 WiFi
 
 - **Added** `ThingerR4OTA`: OTA updates stored in the ESP32-S3 module, which programs the board on reboot. Requires the UNO R4 WiFi firmware 0.4.1 or later.

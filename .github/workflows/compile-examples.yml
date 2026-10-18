@@ -32,6 +32,7 @@ env:
     Arduino_LSM6DS3@1.0.3
     WiFiManager@2.0.17
     StreamDebugger@1.0.1
+    Arduino_RouterBridge@0.4.3
   # TinyGSM fork with Quectel BC660 support (Thinger NB-IoT Core), pinned to a commit
   TINYGSM_GIT: https://github.com/alvarolb/TinyGSM.git#309860823435bd46f3111e13757db2ee4dab72dd
   BOARD_MANAGER_URLS: >-
@@ -163,6 +164,10 @@ jobs:
             fqbn: esp32:esp32:esp32p4
             core: esp32:esp32@3.3.12
             sketches: examples/ESP32/ESP32Eth
+          - name: UNO Q
+            fqbn: arduino:zephyr:unoq
+            core: arduino:zephyr@1.0.0
+            sketches: examples/Arduino/ArduinoUnoQ
           - name: Pico W
             fqbn: rp2040:rp2040:rpipicow:flash=2097152_1048576
             core: rp2040:rp2040@6.3.0
