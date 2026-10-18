@@ -378,6 +378,9 @@ protected:
         wdt_enable(WDT_PERIOD_8CLK_gc);
         #elif defined(__AVR__)
         wdt_enable(WDTO_15MS);
+        #elif defined(ARDUINO_ARCH_RP2040) && !defined(ARDUINO_ARCH_MBED)
+        // Arduino-Pico core (RP2040/RP2350, which can also run on RISC-V cores)
+        rp2040.reboot();
         #elif defined(__arm__)
         NVIC_SystemReset();
         #elif defined(ESP8266) || defined(ESP32)

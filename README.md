@@ -7,7 +7,9 @@ The Arduino Client Library is an easy to use client library to connect your IoT 
 It supports multiple network interfaces like Ethernet, Wifi, and GSM. So you can use it in several devices like the following:
 
 * Espressif ESP8266 (OTA Support)
-* Espressif ESP32 (OTA Support)
+* Espressif ESP32, ESP32-S2, ESP32-S3, ESP32-C3, ESP32-C5, ESP32-C6 and ESP32-P4 (Ethernet), including Arduino Nano ESP32 and Seeed XIAO ESP32 (OTA Support)
+* Raspberry Pi Pico W and Pico 2 W (OTA Support)
+* Arduino UNO R4 WiFi (OTA Support)
 * Arduino Nano RP2040 Connect (OTA Support)
 * Arduino Nano 33 IoT (OTA Support)
 * Arduino Portenta H7 (OTA Support)

@@ -25,6 +25,7 @@
 #define THINGER_R4WIFI_H
 
 #include <WiFiS3.h>
+#include <OTAUpdate.h>
 #include "ThingerWifi.h"
 
 // load SSL non-SSL client implementations
@@ -48,6 +49,29 @@ public:
     ~ThingerR4WiFi(){
 
     }
+
+    // firmware file stored in the WiFi module, programmed on the next reboot (used by ThingerR4OTA)
+    void set_pending_update(const char* file_path){
+        pending_update_ = file_path;
+    }
+
+protected:
+
+    void run_reboot() override{
+        if(pending_update_!=nullptr){
+            THINGER_DEBUG_VALUE("OTA", "Programming firmware from: ", pending_update_);
+            // the WiFi module programs the board and resets it, so it only returns on error
+            OTAUpdate ota;
+            int result = ota.update(pending_update_);
+            THINGER_DEBUG_VALUE("OTA", "Cannot program firmware: ", result);
+        }
+        ThingerWifiClient::run_reboot();
+    }
+
+private:
+    const char* pending_update_ = nullptr;
+
+public:
 
 #ifndef _DISABLE_TLS_
     bool connect_socket() override{

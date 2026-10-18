@@ -1,9 +1,14 @@
 #define THINGER_SERIAL_DEBUG
 
 #include <ThingerR4WiFi.h>
+#include <ThingerR4OTA.h>
 #include "arduino_secrets.h"
 
 ThingerR4WiFi thing(USERNAME, DEVICE_ID, DEVICE_CREDENTIAL);
+
+// Initialize UNO R4 WiFi OTA (requires the UNO R4 WiFi firmware 0.4.1 or later)
+// use Thinger.io VSCode Studio extension + Platformio to upgrade the device remotely
+ThingerR4OTA ota(thing);
 
 void setup() {
     // open serial for debugging

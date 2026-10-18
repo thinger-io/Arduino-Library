@@ -37,6 +37,7 @@ env:
   BOARD_MANAGER_URLS: >-
     https://espressif.github.io/arduino-esp32/package_esp32_index.json
     https://arduino.esp8266.com/stable/package_esp8266com_index.json
+    https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
 
 jobs:
   lint:
@@ -150,6 +151,26 @@ jobs:
             sketches: >-
               examples/ESP32/ESP32
               examples/ESP32/ESP32OTA
+          - name: ESP32-S2
+            fqbn: esp32:esp32:esp32s2
+            core: esp32:esp32@3.3.12
+            sketches: examples/ESP32/ESP32OTA
+          - name: ESP32-C5
+            fqbn: esp32:esp32:esp32c5
+            core: esp32:esp32@3.3.12
+            sketches: examples/ESP32/ESP32OTA
+          - name: ESP32-P4 (Ethernet)
+            fqbn: esp32:esp32:esp32p4
+            core: esp32:esp32@3.3.12
+            sketches: examples/ESP32/ESP32Eth
+          - name: Pico W
+            fqbn: rp2040:rp2040:rpipicow:flash=2097152_1048576
+            core: rp2040:rp2040@6.3.0
+            sketches: examples/RaspberryPi/PicoW
+          - name: Pico 2 W
+            fqbn: rp2040:rp2040:rpipico2w:flash=4194304_2097152
+            core: rp2040:rp2040@6.3.0
+            sketches: examples/RaspberryPi/PicoW
           - name: NodeMCU (ESP8266)
             fqbn: esp8266:esp8266:nodemcuv2
             core: esp8266:esp8266@3.1.2

@@ -1,3 +1,19 @@
+## 2.42.0
+
+#### Raspberry Pi Pico W / Pico 2 W
+
+- **Added** `ThingerPicoW` for Raspberry Pi Pico W and Pico 2 W (and other RP2040/RP2350 boards with CYW43 WiFi) using the [Arduino-Pico](https://github.com/earlephilhower/arduino-pico) core, with TLS certificate validation (BearSSL + NTP).
+- **Added** `ThingerPicoOTA`: OTA updates stored in LittleFS and applied by the core bootloader. Requires a Flash Size option with a file system large enough for the firmware. Optional gzip compression with `THINGER_OTA_COMPRESSION`.
+- **Added** device reboot on the Arduino-Pico core.
+
+#### Arduino UNO R4 WiFi
+
+- **Added** `ThingerR4OTA`: OTA updates stored in the ESP32-S3 module, which programs the board on reboot. Requires the UNO R4 WiFi firmware 0.4.1 or later.
+
+#### ESP32
+
+- **Verified** ESP32-S2, ESP32-S3, ESP32-C3, ESP32-C5, ESP32-C6 and ESP32-P4 (Ethernet) on ESP32 Arduino core 3.3, now compiled on every change.
+
 ## 2.41.1
 
 #### General
