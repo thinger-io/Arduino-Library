@@ -12,7 +12,7 @@
 
 #### Arduino UNO R4 WiFi
 
-- **Added** `ThingerR4OTA`: OTA updates stored in the ESP32-S3 module, which programs the board on reboot. Requires the UNO R4 WiFi firmware 0.4.1 or later.
+- **Added** `ThingerR4OTA` (experimental, not yet tested on hardware): OTA updates stored in the ESP32-S3 module, which programs the board on reboot. Requires the UNO R4 WiFi firmware 0.4.1 or later.
 
 #### ESP32
 

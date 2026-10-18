@@ -3,7 +3,7 @@
 
 // OTA for the Arduino UNO R4 WiFi. The firmware is stored in the file system of the ESP32-S3
 // module, which programs the RA4M1 with it when the device reboots after the update.
-// Requires the UNO R4 WiFi firmware 0.4.1 or later (Tools > Firmware Updater).
+// Requires the UNO R4 WiFi firmware 0.4.1 or later (Tools > Firmware Updater). Experimental.
 
 #ifndef THINGER_OTA_CHUNK_SIZE
 #define THINGER_OTA_CHUNK_SIZE 1024
