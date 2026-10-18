@@ -1,3 +1,9 @@
+## 2.43.2
+
+#### Console
+
+- **Fixed** crash on the second and following commands of `ThingerConsole` ([#55](https://github.com/thinger-io/Arduino-Library/issues/55)): the command parser used `static` lambdas capturing by reference, so they kept pointing to the variables of the first call. Note that `ThingerConsole` requires `std::function`, so it is not available on AVR boards.
+
 ## 2.43.1
 
 #### WiFi

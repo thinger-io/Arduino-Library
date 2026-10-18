@@ -328,7 +328,7 @@ protected:
         bool open_quote = false;
         bool scape_next = false;
 
-        static auto add_token = [&](size_t i){
+        auto add_token = [&](size_t i){
             command[i] = 0;
             if(argc<max_args){
                 argv[argc++] = current_arg;
@@ -336,7 +336,7 @@ protected:
             current_arg = nullptr;
         };
 
-        static auto move_left = [&](int& i){
+        auto move_left = [&](int& i){
             for(auto j=i; j<size-1; j++){
                 command[j] = command[j+1];
             }
