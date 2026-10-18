@@ -1,3 +1,9 @@
+## 2.43.0
+
+#### General
+
+- **Added** `THINGER_ROOT_CA` to define at compile time the CA root certificate (PEM) used to validate the server, i.e., for instances with their own CA. Define it before including the library; it takes precedence over the default certificates. `set_root_ca()` keeps changing it at runtime.
+
 ## 2.42.0
 
 #### Raspberry Pi Pico W / Pico 2 W

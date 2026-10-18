@@ -18,6 +18,11 @@
 // define private server instance
 // #define THINGER_SERVER "acme.aws.thinger.io"
 
+// define the CA root certificate (PEM) of a server with its own CA
+// #define THINGER_ROOT_CA R"(-----BEGIN CERTIFICATE-----
+// ...
+// -----END CERTIFICATE-----)"
+
 #include <ThingerESP32Eth.h>
 #include <ThingerESP32OTA.h>
 #include "arduino_secrets.h"

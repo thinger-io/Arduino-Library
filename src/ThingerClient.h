@@ -35,7 +35,13 @@
 
 using namespace protoson;
 
-#if defined(__AVR__)
+#if defined(THINGER_ROOT_CA)
+    // CA root certificate (PEM) defined in the sketch, i.e., for instances with their own CA
+    #ifndef THINGER_SERVER
+        #define THINGER_SERVER "iot.thinger.io"
+    #endif
+    auto CA_ROOT_CERTIFICATE = THINGER_ROOT_CA;
+#elif defined(__AVR__)
     // AVR boards do not use TLS and keep string literals in RAM, so they skip the CA root certificate
     #ifndef THINGER_SERVER
         #define THINGER_SERVER "iot.thinger.io"
