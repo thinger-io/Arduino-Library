@@ -1,0 +1,6 @@
+Unmodified WiFiMulti test fixture from Espressif arduino-esp32.
+Header: https://github.com/espressif/arduino-esp32/blob/2.0.17/libraries/WiFi/src/WiFiMulti.h
+Git blob SHA: 38ddb5d9f958fe47d0bccf74f4d7e61396c69dd5
+Source: https://github.com/espressif/arduino-esp32/blob/2.0.17/libraries/WiFi/src/WiFiMulti.cpp
+Git blob SHA: 3d69e481293c73a7b562d66d1bb44b63b62fb493
+License: LGPL-2.1-or-later; see file headers and LICENSE.md.

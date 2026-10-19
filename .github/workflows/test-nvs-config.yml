@@ -1,0 +1,26 @@
+name: test-nvs-config
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        core: [esp32_core, esp32_core_v2]
+        flags:
+          - ''
+          - '-DTHINGER_ESP32_CONFIG_USE_LITTLEFS'
+          - '-DTHINGER_ESP32_CONFIG_SKIP_LEGACY_MIGRATION'
+    steps:
+      - uses: actions/checkout@v5
+      - name: Compile real PSON, ThingerWifi, WebConfig and pinned WiFiMulti
+        run: >-
+          g++ -std=c++11 -Wall -Wextra -Wno-unused-parameter
+          ${{ matrix.flags }}
+          -DCONFIG_ESP_WIFI_ENTERPRISE_SUPPORT=${{ matrix.core == 'esp32_core' && '1' || '0' }}
+          -Itests/nvs_config/stubs -Itests/nvs_config/${{ matrix.core }} -Isrc
+          tests/nvs_config/test.cpp tests/nvs_config/${{ matrix.core }}/WiFiMulti.cpp
+          -o /tmp/test-nvs-config
+      - name: Run migration and storage failure tests
+        run: /tmp/test-nvs-config

@@ -124,6 +124,7 @@ jobs:
             sketches: >-
               examples/ESP32/ESP32
               examples/ESP32/ESP32OTA
+              tests/nvs_config/sketch
           - name: ESP32
             fqbn: esp32:esp32:esp32
             core: esp32:esp32@3.3.12
@@ -133,6 +134,7 @@ jobs:
               examples/ESP32/ESP32OTA
               examples/ESP32/ESP32RTOS
               examples/ESP32/ESP32WebConfig
+              tests/nvs_config/sketch
               examples/Thinger/NBCore
           - name: ESP32-S3
             fqbn: esp32:esp32:esp32s3

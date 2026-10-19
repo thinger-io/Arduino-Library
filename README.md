@@ -73,6 +73,146 @@ Each board family uses its own header. Every board in this table is compiled on 
 
 **Legacy** (discontinued hardware, kept for compatibility): Adafruit CC3000 (`ThingerCC3000.h`) and the Arduino WiFi shield (`ThingerWifi.h`), still compiled on CI; Texas Instruments CC3200 with Energia and LinkIt ONE (`ThingerLinkItOneWifi.h`, `ThingerLinkItOneGPRS.h`), whose cores are no longer available.
 
+## ESP32 WebConfig storage and migration
+
+`ThingerESP32WebConfig` stores the entire configuration object in the ESP32's
+default NVS partition, namespace `thinger`, key `config`. The versioned blob
+contains the original PSON payload, including custom and unknown fields. Later
+portal saves update the loaded object rather than dropping unregistered fields.
+WiFiManager's native Wi-Fi credentials remain managed by the ESP32 Wi-Fi core
+in NVS; they are not part of the upstream `/config.pson` schema. Any Wi-Fi fields
+added to that file by an application are preserved with all other fields; the
+application's configuration callback continues to interpret them.
+
+When the NVS record is absent, the first load imports `/config.pson` from SPIFFS.
+For ESP32 firmware that previously used LittleFS, define
+`THINGER_ESP32_CONFIG_USE_LITTLEFS` before including `ThingerESP32WebConfig.h`.
+Choose the filesystem actually used by the deployed firmware. The importer
+never formats flash. It validates the complete PSON object, commits it to NVS,
+checks the saved bytes and reloads from NVS before removing the legacy file.
+Once a record exists, loading never consults the filesystem again, including
+when legacy cleanup fails. A reset during import leaves either the original
+file for retry or an authoritative NVS record.
+
+NVS failures, invalid/unsupported records and an unreadable legacy volume
+stop configuration loading rather than overwriting data through the portal.
+The file remains untouched if import fails. The default maximum PSON payload is
+16 KiB; override `THINGER_NVS_CONFIG_MAX_SIZE` before including the header for
+larger deployments, subject to available RAM and NVS capacity.
+
+For **new devices without a legacy filesystem**, define
+`THINGER_ESP32_CONFIG_SKIP_LEGACY_MIGRATION` before including the header. This
+allows first-time portal setup without mounting a filesystem; do not enable it
+on a deployed fleet that needs migration. Preserve the old filesystem partition
+and NVS partition during the firmware update until migration has completed.
+
+`clean_credentials()` commits an empty-state NVS record instead of removing
+the key. This prevents a leftover legacy file from restoring cleared settings.
+It preserves the existing method's scope: it does not erase WiFiManager's
+separate native Wi-Fi configuration. Explicit cleanup is also available to an
+application that intentionally discards an unreadable configuration.
+
+On **all ESP32 Wi-Fi clients**, including `ThingerESP32` and WebConfig,
+`add_wifi(ssid, password)` now commits the complete personal-network list to the
+separate NVS key `thinger/wifi`. Calls for the same SSID update its password;
+identical calls do not rewrite flash. Null and empty passwords both represent
+an open network. The library owns copies of the credential strings.
+
+Initialization is lazy, so global constructors do not access NVS. `add_wifi()`
+loads and merges the existing list before updating it. Connection attempts load
+the list and rebuild `WiFiMulti` even if the sketch never calls `add_wifi()`
+after reboot. WebConfig checks this restored list before opening its portal,
+and successful portal submissions are added to the same persistent list.
+An existing ESP32 native Wi-Fi configuration remains the fallback only while
+the `thinger/wifi` record has never been created. An explicitly empty saved list
+does not enable that fallback.
+
+The `add_wifi()` signature remains `void`. Check `wifi_storage_ok()` immediately
+after a call to detect storage errors or rejected credentials. The accepted
+limits match WiFiMulti in the tested cores: 1–31 bytes for SSID, 0–63 bytes for
+password, at most 255 list entries, and the configured NVS payload limit.
+`restore_wifi_networks()` is also available to initialize or retry loading
+explicitly. A read error or invalid Wi-Fi record blocks connecting with that
+record; it does not replace the saved list with an empty one. A failed update
+does not register the proposed credentials in RAM. After a commit whose
+verification failed, the next load may recover the complete new record.
+
+The ESP32 personal-network registry also provides:
+
+```cpp
+std::vector<std::string> ssids;
+if (thing.list_wifi(ssids)) {
+    for (const auto& ssid : ssids) Serial.println(ssid.c_str());
+}
+
+if (!thing.remove_wifi("network-b") && !thing.wifi_storage_ok()) {
+    // Handle a storage/restore failure. An absent SSID also returns false,
+    // but leaves wifi_storage_ok() true after a successful load.
+}
+```
+
+`list_wifi(ssids)` loads the saved list lazily and returns an independent
+snapshot of SSIDs, in registration order. It never exposes passwords or writes
+flash. A valid empty list returns true; on failure the output stays unchanged.
+`remove_wifi(ssid)` matches the SSID exactly, including case. It commits the
+remaining complete list and rebuilds WiFiMulti before reporting success. If the
+removed SSID is the driver's current network, it requests a disconnect and
+clearing that driver's saved AP. Removing an absent/invalid SSID does not write
+flash. A failed update may have committed before verification failed, as with
+`add_wifi()`; retry loading before deciding which list survived.
+
+Removing the last personal network leaves a valid empty NVS record. A reboot
+cannot resurrect an old AP through the library's native-driver fallback.
+WebConfig opens the portal when another network is required; other clients
+report `NETWORK_NOT_CONFIGURED`. Listing/deletion only applies to networks
+registered by `add_wifi()` or the portal, preserving RAM enterprise networks
+and the separate PSON configuration. Future explicit `add_wifi()` calls for a
+removed SSID register it again, including unconditional calls in `setup()`.
+
+`bool clear_wifi()` removes all personal networks registered by `add_wifi()` or
+the portal, commits a valid empty list to NVS and rebuilds WiFiMulti. For example:
+
+```cpp
+if (!thing.clear_wifi()) {
+    // Handle the storage failure; the clear could not be verified.
+}
+```
+
+The empty record remains authoritative across resets, blocking native-driver
+fallback even if old driver credentials survived separately. A current
+non-enterprise connection is asked to disconnect and clear its saved AP.
+PSON configuration, Thinger credentials, custom parameters, unrelated NVS keys,
+and RAM-only enterprise credentials are preserved. An active enterprise
+connection is retained. Explicit clearing can replace a malformed Wi-Fi record
+without loading it first; it never formats or erases the NVS partition.
+The return value is true only after commit, readback verification and rebuilding
+the runtime list. As with other updates, a failed readback can follow a successful
+commit; reload to determine the surviving state. New explicit `add_wifi()` calls
+or a portal submission can register networks again after clearing.
+
+`add_wifi_enterprise()` retains its existing RAM-only behavior. Adding/updating
+a personal network preserves enterprise entries already registered in RAM.
+`clean_credentials()` clears only the PSON configuration, preserving the Wi-Fi
+list, just as it previously preserved the native Wi-Fi credentials. Stopping
+calls to `add_wifi()` does not delete networks that were already persisted.
+Opaque application-defined Wi-Fi fields in the migrated PSON are preserved;
+their existing application callback still defines how to interpret them.
+
+ESP8266 continues to use its existing LittleFS backend and RAM WiFiMulti list;
+ESP32 NVS is not an ESP8266 storage API. Host tests in `tests/nvs_config` run in
+CI against the real ThingerWifi, ESP32 WebConfig and PSON code and unmodified
+WiFiMulti sources from ESP32 cores 2.0.17 and 3.3.12. Only radio, transport, NVS
+and filesystem operations are simulated. The matrix covers SPIFFS, LittleFS
+and new devices without a filesystem. Tests cover reboot without `add_wifi()`,
+strongest-network selection, fallback, open/hidden networks, password updates,
+duplicate prevention, portal persistence, failed writes/commits/reads, and full
+PSON migration alongside multiple networks. They also verify independent SSID
+snapshots, persistent deletion, active/last-network removal, blocking stale
+native-driver fallback, deletion failure recovery, clearing all networks,
+preservation of other NVS data, and clearing malformed records. Core fixture sources retain their
+LGPL licenses. `tests/nvs_config/sketch` checks the public persistence API in the
+ESP32 and Nano ESP32 board compilation matrix, alongside the existing examples.
+
 ## OTA updates
 
 The boards with an OTA header can be updated remotely over the Internet. The [Thinger.io extension for Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=thinger-io.thinger-io) builds the firmware with PlatformIO, sends it to the device (compressed when the board supports it) and reboots it.

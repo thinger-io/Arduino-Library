@@ -97,12 +97,20 @@ protected:
 
     virtual bool load_configuration(pson& configuration) = 0;
     virtual bool save_configuration(pson& configuration) = 0;
+    virtual bool configuration_storage_error() const { return false; }
+    virtual bool prepare_wifi_configuration() { return true; }
+    virtual bool has_wifi_configuration(WiFiManager& manager) { return manager.getWiFiIsSaved(); }
+    virtual bool save_portal_wifi_configuration(WiFiManager&) { return true; }
 
     bool connect_network() override{
 
-        // read current thinger.io credentials from file system
+        // Read the persisted configuration (NVS on ESP32).
         pson config;
         bool thinger_config = load_configuration(config);
+        if(!prepare_wifi_configuration() || configuration_storage_error()) {
+            this->set_error(ThingerClient::ERROR_UNKNOWN);
+            return false;
+        }
 
         if(thinger_config){
             THINGER_DEBUG("_CONFIG", "Config File Decoded!");
@@ -125,7 +133,7 @@ protected:
 #endif
 
         // if credentials and wifi already configured, try to connect to wifi
-        if(thinger_config && wifiManager.getWiFiIsSaved()){
+        if(strlen(user_) && strlen(device_) && strlen(credential_) && has_wifi_configuration(wifiManager)){
             THINGER_DEBUG("_CONFIG", "Connecting using previous configuration...");
             return ThingerDevice::connect_network();
         // don't have credentials or Wifi, initiate config portal
@@ -149,13 +157,17 @@ protected:
             if(captive_portal_callback_!=NULL) captive_portal_callback_(wifiManager);
 
             bool wifiConnected = wifiManager.startConfigPortal(THINGER_DEVICE_SSID, THINGER_DEVICE_SSID_PSWD);
+            if(wifiConnected && !save_portal_wifi_configuration(wifiManager)) {
+                this->set_error(ThingerClient::ERROR_UNKNOWN);
+                return false;
+            }
 
             // store new values (if it was empty)
             if(strlen(user_)==0)        strcpy(user_, user_parameter.getValue());
             if(strlen(device_)==0)      strcpy(device_, device_parameter.getValue());
             if(strlen(credential_)==0)  strcpy(credential_, credential_parameter.getValue());
 
-            pson config;
+            // Update the loaded object so unregistered custom fields survive.
             config["user"] = (const char *) user_;
             config["device"] = (const char *) device_;
             config["credential"] = (const char *) credential_;
@@ -164,7 +176,10 @@ protected:
                 config[parameters_[i]->getID()] = parameters_[i]->getValue();
             }
 
-            save_configuration(config);
+            if(!save_configuration(config)) {
+                this->set_error(ThingerClient::ERROR_UNKNOWN);
+                return false;
+            }
 
             if(config_callback_!=NULL) config_callback_(config);
             if(wifi_callback_!=NULL) wifi_callback_(wifiConnected);

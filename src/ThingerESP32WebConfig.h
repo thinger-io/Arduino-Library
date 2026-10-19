@@ -23,126 +23,116 @@
 
 #ifndef THINGER_ESP32_WEBCONFIG_H
 #define THINGER_ESP32_WEBCONFIG_H
-#define FORMAT_SPIFFS_IF_FAILED true
 
 #include <FS.h>
+// Select the filesystem used by the deployed firmware, only for migration.
+// SPIFFS is the upstream ESP32 default. Never format during migration.
+#ifdef THINGER_ESP32_CONFIG_USE_LITTLEFS
+#include <LittleFS.h>
+#else
 #include <SPIFFS.h>
+#endif
 #include "ThingerESP32.h"
 #include "ThingerWebConfig.h"
+#include "ThingerESP32NVS.h"
 
-
-class pson_spiffs_decoder : public protoson::pson_decoder{
+class ThingerESP32WebConfig : public ThingerWebConfig<ThingerESP32> {
 public:
-    pson_spiffs_decoder(File& file) : file_(file)
-    {
+    ThingerESP32WebConfig(const char* user="", const char* device="", const char* credential="") :
+        ThingerWebConfig<ThingerESP32>(user, device, credential) {}
+
+    bool clean_credentials() override {
+        // A committed empty-state record also blocks stale file reimports.
+        // Preserve the existing API's scope: WiFiManager's credentials are separate.
+        storage_error_ = !thinger_config::nvs_config::clear();
+        return !storage_error_;
     }
 
 protected:
-    virtual bool read(void* buffer, size_t size){
-        size_t read = file_.readBytes((char*)buffer, size);
-        protoson::pson_decoder::read(buffer, read);
-        return read == size;
+    bool configuration_storage_error() const override { return storage_error_ || !this->wifi_storage_ok(); }
+
+    bool prepare_wifi_configuration() override { return this->restore_wifi_networks(); }
+
+    bool has_wifi_configuration(WiFiManager& manager) override {
+        return this->has_wifi_networks() || (!this->wifi_registry_exists_ && manager.getWiFiIsSaved());
+    }
+
+    bool save_portal_wifi_configuration(WiFiManager& manager) override {
+        const String ssid = manager.getWiFiSSID(true);
+        const String password = manager.getWiFiPass(true);
+        this->add_wifi(ssid.c_str(), password.c_str());
+        return this->wifi_storage_ok();
+    }
+
+    bool save_configuration(pson& config) override {
+        storage_error_ = !thinger_config::nvs_config::save(config);
+        if(storage_error_) THINGER_DEBUG("_CONFIG", "Cannot save NVS configuration!");
+        return !storage_error_;
+    }
+
+    bool load_configuration(pson& config) override {
+        using store = thinger_config::nvs_config;
+        storage_error_ = false;
+        const store::result result = store::load(config);
+        if(result == store::result::ready) return true;
+        if(result == store::result::cleared) return false;
+        if(result == store::result::error) {
+            storage_error_ = true;
+            THINGER_DEBUG("_CONFIG", "Cannot read NVS configuration; legacy import blocked!");
+            return false;
+        }
+        // Only a missing NVS record may trigger the one-time legacy import.
+#ifdef THINGER_ESP32_CONFIG_SKIP_LEGACY_MIGRATION
+        // New production devices may omit the legacy filesystem entirely.
+        return false;
+#else
+        return migrate_legacy(config);
+#endif
     }
 
 private:
-    File& file_;
-};
+    bool storage_error_ = false;
 
-class pson_spiffs_encoder : public protoson::pson_encoder{
-public:
-    pson_spiffs_encoder(File& file) : file_(file)
-    {
-    }
-
-protected:
-    virtual bool write(const void* buffer, size_t size){
-        size_t wrote = file_.write((const uint8_t*)buffer, size);
-        protoson::pson_encoder::write(buffer, wrote);
-        return wrote == size;
-    }
-
-private:
-    File& file_;
-};
-
-class ThingerESP32WebConfig : public ThingerWebConfig<ThingerESP32>{
-
-    public:
-    ThingerESP32WebConfig(const char* user="", const char* device="", const char* credential="") : 
-    ThingerWebConfig<ThingerESP32>(user, device, credential) {
-
-    }
-
-     bool clean_credentials() override{
-        THINGER_DEBUG("_CONFIG", "Cleaning credentials...");
-        // clean Thinger.io credentials from file system
-        if(SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED)) {
-            THINGER_DEBUG("_CONFIG", "FS Mounted!");
-            if (SPIFFS.exists(CONFIG_FILE)) {
-                THINGER_DEBUG("_CONFIG", "Removing Config File...");
-                if(SPIFFS.remove(CONFIG_FILE)){
-                    THINGER_DEBUG("_CONFIG", "Config file removed!");
-                    return true;
-                }else{
-                    THINGER_DEBUG("_CONFIG", "Cannot delete config file!");
-                }
-            }else{
-                THINGER_DEBUG("_CONFIG", "No config file to delete!");
-            }
-            SPIFFS.end();
+    bool migrate_legacy(pson& config) {
+#ifdef THINGER_ESP32_CONFIG_USE_LITTLEFS
+        auto& filesystem = LittleFS;
+#else
+        auto& filesystem = SPIFFS;
+#endif
+        if(!filesystem.begin(false)) {
+            // Distinguish an unreadable legacy volume from an absent file.
+            // Explicit clean_credentials() can initialize an NVS-only device.
+            storage_error_ = true;
+            THINGER_DEBUG("_CONFIG", "Cannot mount legacy FS; configuration left intact!");
+            return false;
         }
-        return false;
-    }
-
-
-    protected:
-
-    bool save_configuration(pson& config) override{
-        THINGER_DEBUG("_CONFIG", "Updating Device Info...");
-        if (SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED)) {
-            File configFile = SPIFFS.open(CONFIG_FILE, "w");
-            if (configFile) {
-                pson_spiffs_encoder encoder(configFile);
-                encoder.encode(config);
-                configFile.close();
-                THINGER_DEBUG("_CONFIG", "Done!");
-                return true;
-            } else {
-                THINGER_DEBUG("_CONFIG", "Failed to open config file for writing!");
-            }
-            SPIFFS.end();
+        if(!filesystem.exists(CONFIG_FILE)) {
+            filesystem.end();
+            return false;
         }
-        return false;
-    }
-
-    bool load_configuration(pson& config) override{
-        THINGER_DEBUG("_CONFIG", "Mounting FS...");
-        if (SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED)) {
-            THINGER_DEBUG("_CONFIG", "FS Mounted!");
-            if (SPIFFS.exists(CONFIG_FILE)) {
-                //file exists, reading and loading
-                THINGER_DEBUG("_CONFIG", "Opening Config File...");
-                File configFile = SPIFFS.open(CONFIG_FILE, "r");
-                if(configFile){
-                    THINGER_DEBUG("_CONFIG", "Config File is Open!");
-                    pson_spiffs_decoder decoder(configFile);
-                    bool result = decoder.decode(config);
-                    configFile.close();
-                    return result;
-                }else{
-                    THINGER_DEBUG("_CONFIG", "Config File is Not Available!");
+        File file = filesystem.open(CONFIG_FILE, "r");
+        bool migrated = false;
+        if(file) {
+            const size_t size = file.size();
+            if(size && size <= THINGER_NVS_CONFIG_MAX_SIZE) {
+                std::unique_ptr<uint8_t[]> bytes(new(std::nothrow) uint8_t[size]);
+                if(bytes && file.readBytes(reinterpret_cast<char*>(bytes.get()), size) == size) {
+                    // save_legacy validates PSON and verifies the committed bytes.
+                    // Reload from NVS before using the migrated configuration.
+                    migrated = thinger_config::nvs_config::save_legacy(bytes.get(), size) &&
+                               thinger_config::nvs_config::load(config) == thinger_config::nvs_config::result::ready;
                 }
             }
-            // close SPIFFS
-            SPIFFS.end();
-        } else {
-            THINGER_DEBUG("_CONFIG", "Failed to Mount FS!");
+            file.close();
         }
-        return false;
+        if(migrated && !filesystem.remove(CONFIG_FILE)) {
+            // NVS is already authoritative, even if cleanup could not finish.
+            THINGER_DEBUG("_CONFIG", "NVS migration complete; legacy file cleanup failed!");
+        }
+        filesystem.end();
+        storage_error_ = !migrated;
+        return migrated;
     }
-
 };
-
-
 
 #endif
