@@ -6,6 +6,7 @@
 #endif
 
 #include "ThingerOTA.h"
+#include "ThingerOTACheck.h"
 #include <Update.h>
 
 #if THINGER_OTA_COMPRESSION
@@ -27,6 +28,12 @@ public:
     {
         // initialize a default block size for esp32
         set_block_size(block_size);
+
+#ifdef THINGER_OTA_CHECK
+        client["THINGER_OTA_CHECK"] >> [](pson& out){
+            thinger_ota_check::fill_output(out);
+        };
+#endif
     }
 
     virtual ~ThingerESP32OTA(){
@@ -39,6 +46,11 @@ public:
 
         // request a md5 checksum
         options["checksum"] = "md5";
+
+#ifdef THINGER_OTA_CHECK
+        // Advertise the resource so clients distinguish a missing check from an error.
+        options["check"] = true;
+#endif
     }
 
     bool begin_ota(const char* firmware, const char* version, size_t size, pson& options, pson& state) override

@@ -124,6 +124,7 @@ jobs:
             sketches: >-
               examples/ESP32/ESP32
               examples/ESP32/ESP32OTA
+              examples/ESP32/ESP32OTACheck
           - name: ESP32
             fqbn: esp32:esp32:esp32
             core: esp32:esp32@3.3.12
@@ -131,6 +132,7 @@ jobs:
               examples/ESP32/ESP32
               examples/ESP32/ESP32Eth
               examples/ESP32/ESP32OTA
+              examples/ESP32/ESP32OTACheck
               examples/ESP32/ESP32RTOS
               examples/ESP32/ESP32WebConfig
               examples/Thinger/NBCore
@@ -140,26 +142,33 @@ jobs:
             sketches: >-
               examples/ESP32/ESP32
               examples/ESP32/ESP32OTA
+              examples/ESP32/ESP32OTACheck
           - name: ESP32-C3
             fqbn: esp32:esp32:esp32c3
             core: esp32:esp32@3.3.12
             sketches: >-
               examples/ESP32/ESP32
               examples/ESP32/ESP32OTA
+              examples/ESP32/ESP32OTACheck
           - name: ESP32-C6
             fqbn: esp32:esp32:esp32c6
             core: esp32:esp32@3.3.12
             sketches: >-
               examples/ESP32/ESP32
               examples/ESP32/ESP32OTA
+              examples/ESP32/ESP32OTACheck
           - name: ESP32-S2
             fqbn: esp32:esp32:esp32s2
             core: esp32:esp32@3.3.12
-            sketches: examples/ESP32/ESP32OTA
+            sketches: >-
+              examples/ESP32/ESP32OTA
+              examples/ESP32/ESP32OTACheck
           - name: ESP32-C5
             fqbn: esp32:esp32:esp32c5
             core: esp32:esp32@3.3.12
-            sketches: examples/ESP32/ESP32OTA
+            sketches: >-
+              examples/ESP32/ESP32OTA
+              examples/ESP32/ESP32OTACheck
           - name: ESP32-P4 (Ethernet)
             fqbn: esp32:esp32:esp32p4
             core: esp32:esp32@3.3.12

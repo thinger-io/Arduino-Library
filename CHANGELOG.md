@@ -1,3 +1,10 @@
+## Unreleased
+
+- **Added** ESP32 `THINGER_OTA_CHECK(FIELD)`: one definition generates a bounded,
+  versioned binary compatibility manifest and the `THINGER_OTA_CHECK` output
+  resource. The OTA options advertise support for the VS Code preflight check.
+- **Added** ESP32 compatibility examples and compile-time validation tests.
+
 ## 2.45.0
 
 #### General
