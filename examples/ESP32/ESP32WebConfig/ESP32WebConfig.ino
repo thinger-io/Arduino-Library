@@ -1,5 +1,10 @@
 #define THINGER_SERIAL_DEBUG
 
+// if the saved WiFi is not available (i.e., the device was moved), the config portal opens
+// for 180 seconds after 3 failed connections, and then the device tries the saved WiFi again
+// #define THINGER_WEBCONFIG_ATTEMPTS 3
+// #define THINGER_WEBCONFIG_PORTAL_TIMEOUT 180
+
 // Requires WifiManager from Library Manager or https://github.com/tzapu/WiFiManager
 // At least version 2.0 (available on master)
 #include <ThingerESP32WebConfig.h>

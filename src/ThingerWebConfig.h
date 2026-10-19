@@ -37,6 +37,16 @@
     #define THINGER_DEVICE_SSID_PSWD "thinger.io"
 #endif
 
+// failed connections to the saved network before opening the config portal again (0 to disable it)
+#ifndef THINGER_WEBCONFIG_ATTEMPTS
+    #define THINGER_WEBCONFIG_ATTEMPTS 3
+#endif
+
+// seconds the config portal is open after failing to connect to the saved network
+#ifndef THINGER_WEBCONFIG_PORTAL_TIMEOUT
+    #define THINGER_WEBCONFIG_PORTAL_TIMEOUT 180
+#endif
+
 #define MAX_ADDITIONAL_PARAMETERS 5
 
 template <class ThingerDevice>
@@ -124,57 +134,87 @@ protected:
             wifiManager.setDebugOutput(false);
 #endif
 
+#ifdef ESP32
+        // WiFiManager reads the stored WiFi from the driver, so it must be initialized (otherwise the result is random)
+        WiFi.mode(WIFI_STA);
+#endif
+
+        // credentials set in the constructor do not need the config portal, unless it has custom parameters
+        bool thinger_credentials = strlen(user_)>0 && strlen(device_)>0 && strlen(credential_)>0 && custom_params_==0;
+
         // if credentials and wifi already configured, try to connect to wifi
-        if(thinger_config && wifiManager.getWiFiIsSaved()){
+        if((thinger_config || thinger_credentials) && wifiManager.getWiFiIsSaved()){
             THINGER_DEBUG("_CONFIG", "Connecting using previous configuration...");
-            return ThingerDevice::connect_network();
+            if(ThingerDevice::connect_network()){
+                failed_connections_ = 0;
+                return true;
+            }
+            // the device may have been moved to another place: open the config portal for a while
+            if(THINGER_WEBCONFIG_ATTEMPTS==0 || ++failed_connections_ < THINGER_WEBCONFIG_ATTEMPTS) return false;
+            failed_connections_ = 0;
+            THINGER_DEBUG("_CONFIG", "Cannot connect to the saved network, starting Webconfig...");
+            wifiManager.setConfigPortalTimeout(THINGER_WEBCONFIG_PORTAL_TIMEOUT);
+            // show the current values of the custom parameters, so they are not reset
+            for(int i=0; i<custom_params_; i++){
+                if(config[parameters_[i]->getID()].is_string()){
+                    parameters_[i]->setValue(config[parameters_[i]->getID()], parameters_[i]->getValueLength());
+                }
+            }
+            // on timeout, keep the configuration and the error, and try the saved network again
+            return run_config_portal(wifiManager, false);
         // don't have credentials or Wifi, initiate config portal
         }else{
             THINGER_DEBUG("_CONFIG", "Starting Webconfig...");
-
-            WiFiManagerParameter user_parameter("user", "User Id", user_, 40);
-            WiFiManagerParameter device_parameter("device", "Device Id", device_, 40);
-            WiFiManagerParameter credential_parameter("credential", "Device Credential", credential_, 40);
-
-            // add credentials parameters if not set at startup
-            if(strlen(user_)==0)        wifiManager.addParameter(&user_parameter);
-            if(strlen(device_)==0)      wifiManager.addParameter(&device_parameter);
-            if(strlen(credential_)==0)  wifiManager.addParameter(&credential_parameter);
-
-            // add custom parameters
-            for(int i=0; i<custom_params_; i++){
-                wifiManager.addParameter(parameters_[i]);
-            }
-
-            if(captive_portal_callback_!=NULL) captive_portal_callback_(wifiManager);
-
-            bool wifiConnected = wifiManager.startConfigPortal(THINGER_DEVICE_SSID, THINGER_DEVICE_SSID_PSWD);
-
-            // store new values (if it was empty)
-            if(strlen(user_)==0)        strcpy(user_, user_parameter.getValue());
-            if(strlen(device_)==0)      strcpy(device_, device_parameter.getValue());
-            if(strlen(credential_)==0)  strcpy(credential_, credential_parameter.getValue());
-
-            pson config;
-            config["user"] = (const char *) user_;
-            config["device"] = (const char *) device_;
-            config["credential"] = (const char *) credential_;
-
-            for(int i=0; i<custom_params_; i++){
-                config[parameters_[i]->getID()] = parameters_[i]->getValue();
-            }
-
-            save_configuration(config);
-
-            if(config_callback_!=NULL) config_callback_(config);
-            if(wifi_callback_!=NULL) wifi_callback_(wifiConnected);
-            if(WiFi.status() != WL_CONNECTED){
-                // the config portal finished without configuring the WiFi
-                this->set_error(ThingerClient::NETWORK_NOT_CONFIGURED);
-                return false;
-            }
-            return true;
+            if(run_config_portal(wifiManager, true)) return true;
+            // the config portal finished without configuring the WiFi
+            this->set_error(ThingerClient::NETWORK_NOT_CONFIGURED);
+            return false;
         }
+    }
+
+    // runs the config portal and saves the configuration (if not connected, only when save_always)
+    bool run_config_portal(WiFiManager& wifiManager, bool save_always){
+        WiFiManagerParameter user_parameter("user", "User Id", user_, 40);
+        WiFiManagerParameter device_parameter("device", "Device Id", device_, 40);
+        WiFiManagerParameter credential_parameter("credential", "Device Credential", credential_, 40);
+
+        // add credentials parameters if not set at startup
+        if(strlen(user_)==0)        wifiManager.addParameter(&user_parameter);
+        if(strlen(device_)==0)      wifiManager.addParameter(&device_parameter);
+        if(strlen(credential_)==0)  wifiManager.addParameter(&credential_parameter);
+
+        // add custom parameters
+        for(int i=0; i<custom_params_; i++){
+            wifiManager.addParameter(parameters_[i]);
+        }
+
+        if(captive_portal_callback_!=NULL) captive_portal_callback_(wifiManager);
+
+        bool wifiConnected = wifiManager.startConfigPortal(THINGER_DEVICE_SSID, THINGER_DEVICE_SSID_PSWD);
+        if(!wifiConnected && !save_always){
+            if(wifi_callback_!=NULL) wifi_callback_(wifiConnected);
+            return false;
+        }
+
+        // store new values (if it was empty)
+        if(strlen(user_)==0)        strcpy(user_, user_parameter.getValue());
+        if(strlen(device_)==0)      strcpy(device_, device_parameter.getValue());
+        if(strlen(credential_)==0)  strcpy(credential_, credential_parameter.getValue());
+
+        pson config;
+        config["user"] = (const char *) user_;
+        config["device"] = (const char *) device_;
+        config["credential"] = (const char *) credential_;
+
+        for(int i=0; i<custom_params_; i++){
+            config[parameters_[i]->getID()] = parameters_[i]->getValue();
+        }
+
+        save_configuration(config);
+
+        if(config_callback_!=NULL) config_callback_(config);
+        if(wifi_callback_!=NULL) wifi_callback_(wifiConnected);
+        return WiFi.status() == WL_CONNECTED;
     }
 
 private:
@@ -183,6 +223,7 @@ private:
     char credential_[40];
     WiFiManagerParameter *parameters_[MAX_ADDITIONAL_PARAMETERS] ;
     int custom_params_;
+    uint8_t failed_connections_ = 0;
     void (*config_callback_)(pson &);
     void (*wifi_callback_)(bool);
     void (*captive_portal_callback_)(WiFiManager& manager);

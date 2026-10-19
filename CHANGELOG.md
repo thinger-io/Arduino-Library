@@ -1,3 +1,12 @@
+## 2.46.0
+
+#### WebConfig
+
+- **Changed** `ThingerESP32WebConfig` stores the configuration (Thinger.io credentials and custom parameters) in NVS instead of SPIFFS ([#58](https://github.com/thinger-io/Arduino-Library/issues/58)). NVS keeps it on power loss, and it does not depend on the partition scheme, so it is not lost after flashing a firmware with another partition scheme. The configuration of previous versions is migrated from SPIFFS to NVS on the first boot, and the SPIFFS partition is no longer formatted if it cannot be mounted. Note that the WiFi credentials were already stored in NVS by the ESP32 WiFi driver.
+- **Fixed** `ThingerESP32WebConfig` opening the config portal at boot, randomly, with a WiFi network already configured, so it looked like the WiFi credentials were lost ([#58](https://github.com/thinger-io/Arduino-Library/issues/58)). WiFiManager reads the stored network from the WiFi driver, that was not initialized yet.
+- **Added** the config portal opens again when the device cannot connect to the saved WiFi network, i.e., it was moved to another place ([#49](https://github.com/thinger-io/Arduino-Library/issues/49)). After `THINGER_WEBCONFIG_ATTEMPTS` failed connections (3 by default, 0 to disable it), the portal is open for `THINGER_WEBCONFIG_PORTAL_TIMEOUT` seconds (180 by default), and then the device tries the saved network again. The portal shows the current values of the custom parameters, and the configuration does not change if the portal times out.
+- **Fixed** the config portal opening at boot when the WiFi is configured and the credentials are set in the constructor, but there is no stored configuration (i.e., after erasing the file system).
+
 ## 2.45.0
 
 #### General
