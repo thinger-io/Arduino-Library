@@ -38,8 +38,8 @@
     #define THINGER_ZEPHYR_CA_TAG 0x5448
 #endif
 
-// TCP/TLS client on the Zephyr sockets. The core TLS client cannot be used, as it passes the CA certificate in PEM
-// format, which the Zephyr firmware of the core does not support, so the connection always fails
+// TCP/TLS client on the Zephyr sockets. The TLS client of the core (ZephyrSSLClient 1.0.0) cannot connect: it sets
+// a list of credential tags with uninitialized entries, and registers the credentials again on every connection
 class ThingerZephyrClient : public arduino::Client {
 
 public:
@@ -161,8 +161,8 @@ private:
         return tag;
     }
 
-    // registers the CA root certificate in DER format (the credential keeps a reference to it). The core cannot
-    // delete credentials, so a different certificate (i.e., set_root_ca()) is registered with the next tag
+    // registers the CA root certificate (in DER format, smaller than PEM), once, as the credential keeps a reference
+    // to it. The core cannot delete credentials, so a different certificate (set_root_ca()) uses the next tag
     bool register_ca(){
         static uint8_t der[2][2048];
         static const char* registered = nullptr;
