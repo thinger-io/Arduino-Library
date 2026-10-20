@@ -141,8 +141,14 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
     #define THINGER_TLS_HOST "thinger.io"
 #endif
 
+// wait before retrying a failed connection. Server failures (socket, TLS or authentication) double it on every
+// failure up to the maximum, plus a random jitter, so many devices do not reconnect to the server at the same time
 #ifndef RECONNECTION_TIMEOUT
     #define RECONNECTION_TIMEOUT 5000   // milliseconds
+#endif
+
+#ifndef THINGER_RECONNECTION_MAX_TIMEOUT
+    #define THINGER_RECONNECTION_MAX_TIMEOUT 30000   // milliseconds
 #endif
 
 #ifndef DEFAULT_READ_TIMEOUT
@@ -376,6 +382,15 @@ protected:
         return true;
     }
 
+    // result of a step of the network connection
+    enum class network_status{ connected, connecting, failed };
+
+    // connects to the network without blocking the loop: it is called on every handle() while it returns
+    // connecting. By default, it waits for the (blocking) connect_network()
+    virtual network_status connect_network_step(){
+        return connect_network() ? network_status::connected : network_status::failed;
+    }
+
     virtual bool network_connected(){
         return true;
     }
@@ -493,10 +508,16 @@ protected:
         if(is_connected()) return true;
 
         // client is not connected, so check underlying network
-        if(!network_connected()){
-            thinger_state_listener(NETWORK_CONNECTING);
-            error_ = ERROR_NONE;
-            if(!connect_network()){
+        if(network_connecting_ || !network_connected()){
+            if(!network_connecting_){
+                thinger_state_listener(NETWORK_CONNECTING);
+                error_ = ERROR_NONE;
+                network_connecting_ = true;
+            }
+            network_status status = connect_network_step();
+            if(status==network_status::connecting) return false;
+            network_connecting_ = false;
+            if(status==network_status::failed){
                 // network clients set the reason with set_error() before failing
                 if(error_==ERROR_NONE) error_ = ERROR_UNKNOWN;
                 thinger_state_listener(NETWORK_CONNECT_ERROR);
@@ -552,7 +573,11 @@ public:
     }
 
     void handle(){
+        // wait for the next connection retry without blocking the loop
+        if(retry_wait_>0 && millis()-retry_time_<retry_wait_) return;
         if(handle_connection()){
+            retry_timeout_ = 0;
+            retry_wait_ = 0;
             th_synchronized(size_t available = client_.available();)
             #ifdef _DEBUG_
             if(available>0){
@@ -561,7 +586,19 @@ public:
             #endif
             thinger::thinger::handle(millis(), available>0);
         }else{
-            delay(RECONNECTION_TIMEOUT); // get some delay for a connection retry
+            // the network is still connecting, so check it again on the next handle()
+            if(network_connecting_) return;
+            if(state_==NETWORK_CONNECT_ERROR){
+                // network failures are local, so they are retried without backoff
+                retry_wait_ = RECONNECTION_TIMEOUT;
+            }else{
+                // server failures: exponential backoff, with a random jitter of up to 25%
+                retry_timeout_ = retry_timeout_==0 ? RECONNECTION_TIMEOUT : retry_timeout_ * 2;
+                if(retry_timeout_>THINGER_RECONNECTION_MAX_TIMEOUT) retry_timeout_ = THINGER_RECONNECTION_MAX_TIMEOUT;
+                retry_wait_ = retry_timeout_ + micros() % (retry_timeout_ / 4 + 1);
+            }
+            retry_time_ = millis();
+            THINGER_DEBUG_VALUE("THINGER", "Retrying connection in (ms): ", retry_wait_);
         }
     }
 
@@ -634,6 +671,12 @@ private:
     const char* root_ca_;
     THINGER_ATOMIC(THINGER_STATE) state_{SOCKET_DISCONNECTED};
     THINGER_ATOMIC(THINGER_ERROR) error_{ERROR_NONE};
+    // connection retries: time of the last failure, current timeout (without jitter), and wait (with jitter)
+    unsigned long retry_time_ = 0;
+    unsigned long retry_timeout_ = 0;
+    unsigned long retry_wait_ = 0;
+    // the network connection is in progress (see connect_network_step)
+    bool network_connecting_ = false;
 #ifdef THINGER_USE_FUNCTIONAL
     std::function<void(THINGER_STATE)> state_listener_;
 #else

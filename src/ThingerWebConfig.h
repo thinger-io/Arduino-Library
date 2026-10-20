@@ -108,6 +108,11 @@ protected:
     virtual bool load_configuration(pson& configuration) = 0;
     virtual bool save_configuration(pson& configuration) = 0;
 
+    // the config portal requires the network before continuing, so it waits for the connection
+    typename ThingerDevice::network_status connect_network_step() override{
+        return connect_network() ? ThingerDevice::network_status::connected : ThingerDevice::network_status::failed;
+    }
+
     bool connect_network() override{
 
         // read current thinger.io credentials from file system

@@ -1,3 +1,26 @@
+## 2.48.0
+
+#### General
+
+- **Changed** `thing.handle()` no longer blocks the `loop()` while the device is offline, so the sketch keeps running (i.e., to show the connection state on a display with `thing.get_state()`):
+  - It does not wait to retry a failed connection (it used to wait 5 seconds with `delay()`).
+  - WiFi boards connect to the network step by step, checking the connection on every `thing.handle()`, instead of waiting up to 30 seconds for the WiFi and 30 more for the IP address (and up to 50 seconds more inside `WiFi.begin()` with WiFiNINA, or 10 with the UNO R4 WiFi). The state is `NETWORK_CONNECTING` meanwhile. Connecting to several networks (`WiFiMulti`) still blocks a few seconds while scanning, and WebConfig still waits for the connection.
+  - The TLS connection and the authentication with the server still block the `loop()` for a few seconds on every attempt, as cellular modems while connecting to the network.
+- **Added** exponential backoff when the server cannot be reached or rejects the device (socket, TLS or authentication failures): the wait starts at `RECONNECTION_TIMEOUT` (5 seconds), and doubles on every failure up to `THINGER_RECONNECTION_MAX_TIMEOUT` (30 seconds), with a random jitter of up to 25%, so many devices do not reconnect at the same time (i.e., after a server restart). It is reset once the device connects. Network failures (i.e., WiFi or cellular) are still retried every `RECONNECTION_TIMEOUT`.
+
+#### ESP32
+
+- **Added** automatic rollback of OTA updates with `#define THINGER_OTA_ROLLBACK`: a new firmware must connect to Thinger.io within `THINGER_OTA_ROLLBACK_TIMEOUT` seconds (300 by default), or the device rolls back to the previous firmware, also if it reboots before (i.e., because of a crash). So a firmware with a bug, or with wrong WiFi or Thinger.io credentials, does not leave a remote device offline. It uses the rollback support of the ESP32 bootloader, and works on every ESP32 family (tested on an ESP32-C3).
+
+#### WiFiNINA (Nano 33 IoT, MKR WiFi 1010)
+
+- **Fixed** OTA updates leaving the device unable to boot when the firmware stored in the WiFi module is corrupted: the bootloader (SNU) programs it as it is on the next boot. Now the update reads the stored file back and verifies its MD5 checksum before applying it, and fails with `The firmware stored in the WiFi module is corrupted` otherwise, so the device keeps running its current firmware. The WiFi module does not report write errors ([WiFiNINA#242](https://github.com/arduino-libraries/WiFiNINA/issues/242)), and it returns up to 255 bytes per read ([WiFiNINA#333](https://github.com/arduino-libraries/WiFiNINA/issues/333)).
+  Tested on a MKR WiFi 1010 (NINA firmware 1.4.8), where updates work. On one Arduino Nano 33 IoT unit, with the same NINA firmware (and also 3.0.1), the stored firmware was corrupted during the update, which left it unable to boot before this fix, and now fails safely.
+
+#### Arduino Opta
+
+- **Fixed** `ArduinoOptaWiFi` example not configuring the WiFi network with `thing.add_wifi()`. Tested on hardware: connection with TLS and OTA updates.
+
 ## 2.47.1
 
 #### Arduino Nano RP2040 Connect

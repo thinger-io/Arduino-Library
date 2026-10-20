@@ -35,6 +35,15 @@
     #define THINGER_WIFI_MULTI WiFiMulti
 #endif
 
+// default begin() timeout of the UNO R4 WiFi and WiFiNINA libraries, restored after a non-blocking begin()
+#ifndef THINGER_WIFI_BEGIN_TIMEOUT
+    #if defined(ARDUINO_UNOWIFIR4)
+        #define THINGER_WIFI_BEGIN_TIMEOUT 10000
+    #else
+        #define THINGER_WIFI_BEGIN_TIMEOUT 50000
+    #endif
+#endif
+
 template <class Client>
 class ThingerWifiClient : public ThingerClient {
 
@@ -53,9 +62,71 @@ protected:
         return (WiFi.status() == WL_CONNECTED) && !(WiFi.localIP() == (IPAddress)INADDR_NONE);
     }
 
+    // waits for the connection (i.e., for WebConfig, that requires the network before continuing)
     virtual bool connect_network(){
-        unsigned long wifi_timeout = millis();
+        network_status status;
+        // non-virtual call, as subclasses that override connect_network() may use it in connect_network_step()
+        while((status = ThingerWifiClient::connect_network_step())==network_status::connecting){
+            delay(10);
+        }
+        return status==network_status::connected;
+    }
 
+    // connects to the network without blocking the loop: the first step starts the connection, and the
+    // following ones check if it is connected and has an IP address
+    network_status connect_network_step() override{
+        switch(wifi_step_){
+            case WIFI_IDLE:
+                if(!wifi_begin()) return wifi_end(network_status::failed);
+                wifi_step_ = WIFI_CONNECTING;
+                wifi_timeout_ = millis();
+                return network_status::connecting;
+            case WIFI_CONNECTING:
+                if(WiFi.status()!=WL_CONNECTED){
+                    if(millis()-wifi_timeout_<=30000) return network_status::connecting;
+#if defined(ESP32) && CONFIG_ESP_WIFI_ENTERPRISE_SUPPORT
+                    // the enterprise network failed, so try the other networks, if any
+                    if(enterprise_connecting_ && wifi_networks_>0){
+                        THINGER_DEBUG("NETWORK", "Cannot connect to the enterprise network");
+                        WiFi.disconnect();
+                        enterprise_connecting_ = false;
+                        enterprise_skip_ = true;
+                        wifi_step_ = WIFI_IDLE;
+                        return network_status::connecting;
+                    }
+#endif
+                    THINGER_DEBUG("NETWORK", "Cannot connect to WiFi!");
+                    set_wifi_error();
+                    return wifi_end(network_status::failed);
+                }
+                THINGER_DEBUG("NETWORK", "Connected to WiFi!");
+                THINGER_DEBUG("NETWORK", "Getting IP Address...");
+                wifi_step_ = WIFI_GETTING_IP;
+                wifi_timeout_ = millis();
+                return network_status::connecting;
+            case WIFI_GETTING_IP:
+                if(WiFi.localIP()==(IPAddress)INADDR_NONE){
+                    if(millis()-wifi_timeout_<=30000) return network_status::connecting;
+                    set_error(NETWORK_NO_IP);
+                    return wifi_end(network_status::failed);
+                }
+                THINGER_DEBUG_VALUE("NETWORK", "Got IP Address: ", WiFi.localIP());
+                return wifi_end(network_status::connected);
+        }
+        return wifi_end(network_status::failed);
+    }
+
+    network_status wifi_end(network_status status){
+        wifi_step_ = WIFI_IDLE;
+#if defined(ESP32) && CONFIG_ESP_WIFI_ENTERPRISE_SUPPORT
+        enterprise_connecting_ = false;
+        enterprise_skip_ = false;
+#endif
+        return status;
+    }
+
+    // starts the connection to the configured network (or networks)
+    bool wifi_begin(){
 #ifdef ESP32
         // ESP32 retries by itself, so WiFi.status() loses the reason of a failed connection: keep it
         if(!wifi_events_){
@@ -71,25 +142,17 @@ protected:
 
 #if defined(ESP32) && CONFIG_ESP_WIFI_ENTERPRISE_SUPPORT
         // enterprise network that validates the authentication server (WiFiMulti cannot validate it)
-        if(enterprise_ssid_!=nullptr){
+        if(enterprise_ssid_!=nullptr && !enterprise_skip_){
             THINGER_DEBUG_VALUE("NETWORK", "Connecting to enterprise network ", enterprise_ssid_);
             WiFi.begin(enterprise_ssid_, WPA2_AUTH_PEAP, enterprise_identity_, enterprise_username_, enterprise_password_, enterprise_ca_);
-            while(WiFi.status()!=WL_CONNECTED && millis()-wifi_timeout<30000) delay(100);
-            if(WiFi.status()!=WL_CONNECTED){
-                THINGER_DEBUG("NETWORK", "Cannot connect to the enterprise network");
-                set_wifi_error();
-                // try the other networks, if any
-                if(wifi_networks_==0) return false;
-                WiFi.disconnect();
-                wifi_timeout = millis();
-            }
+            enterprise_connecting_ = true;
+            return true;
         }
-        if(enterprise_ssid_!=nullptr && WiFi.status()==WL_CONNECTED){
-            THINGER_DEBUG_VALUE("NETWORK", "Connected to network ", WiFi.SSID());
-        }else
 #endif
+
 #ifdef THINGER_WIFI_MULTI
-        // several networks (or an enterprise one): scan and connect to the strongest known network
+        // several networks (or an enterprise one): scan and connect to the strongest known network. WiFiMulti does
+        // it in a single call, so it blocks the loop for a few seconds
         if(wifi_networks_>1 || wifi_enterprise_){
             THINGER_DEBUG_VALUE("NETWORK", "Connecting to the strongest known network. Networks: ", wifi_networks_);
             if(wifi_multi_.run()!=WL_CONNECTED){
@@ -98,50 +161,40 @@ protected:
                 return false;
             }
             THINGER_DEBUG_VALUE("NETWORK", "Connected to network ", WiFi.SSID());
-        }else
+            return true;
+        }
 #endif
+
         if(wifi_ssid_!=nullptr){
             THINGER_DEBUG_VALUE("NETWORK", "Connecting to network ", wifi_ssid_);
-            WiFi.begin((char*)wifi_ssid_, (char*) wifi_password_);
+            wifi_begin_network(wifi_ssid_, wifi_password_);
+            return true;
         }
+
+#if defined(ESP8266) || defined(ESP32)
         // espressif esp8266 and esp32 can connect to last network just with begin() (used with WiFiManager)
-        #if defined(ESP8266) || defined(ESP32)
-        else{
-            THINGER_DEBUG("NETWORK", "Connecting to stored network");
-            WiFi.begin();
-        }
-        #else
-        else{
-            THINGER_DEBUG("NETWORK", "Cannot connect to WiFi. SSID not set!");
-            set_error(NETWORK_NOT_CONFIGURED);
-            return false;
-        }
-        #endif
-
-        while( WiFi.status() != WL_CONNECTED) {
-            if(millis() - wifi_timeout > 30000){
-                set_wifi_error();
-                return false;
-            }
-            #ifdef ESP8266
-            yield();
-            #endif
-        }
-
-        THINGER_DEBUG("NETWORK", "Connected to WiFi!");
-        wifi_timeout = millis();
-        THINGER_DEBUG("NETWORK", "Getting IP Address...");
-        while (WiFi.localIP() == (IPAddress)INADDR_NONE) {
-            if(millis() - wifi_timeout > 30000){
-                set_error(NETWORK_NO_IP);
-                return false;
-            }
-            #ifdef ESP8266
-            yield();
-            #endif
-        }
-        THINGER_DEBUG_VALUE("NETWORK", "Got IP Address: ", WiFi.localIP());
+        THINGER_DEBUG("NETWORK", "Connecting to stored network");
+        WiFi.begin();
         return true;
+#else
+        THINGER_DEBUG("NETWORK", "Cannot connect to WiFi. SSID not set!");
+        set_error(NETWORK_NOT_CONFIGURED);
+        return false;
+#endif
+    }
+
+    // starts the connection to a network without waiting for it, as the WiFi library of some boards waits
+    void wifi_begin_network(const char* ssid, const char* password){
+#if defined(ARDUINO_UNOWIFIR4) || defined(WiFiNINA_h)
+        // the WiFi module keeps connecting, and the timeout is only used by begin()
+        WiFi.setTimeout(0);
+        WiFi.begin((char*) ssid, (char*) password);
+        WiFi.setTimeout(THINGER_WIFI_BEGIN_TIMEOUT);
+#elif defined(ARDUINO_ARCH_RP2040) && !defined(ARDUINO_ARCH_MBED)
+        WiFi.beginNoBlock(ssid, password);
+#else
+        WiFi.begin((char*) ssid, (char*) password);
+#endif
     }
 
     // reason of a failed connection, from the status reported by the WiFi library
@@ -210,6 +263,9 @@ protected:
     Client client_;
     const char* wifi_ssid_ = nullptr;
     const char* wifi_password_ = nullptr;
+    // step of the network connection (see connect_network_step)
+    enum : uint8_t { WIFI_IDLE, WIFI_CONNECTING, WIFI_GETTING_IP } wifi_step_ = WIFI_IDLE;
+    unsigned long wifi_timeout_ = 0;
 #ifdef ESP32
     // error of the last disconnection reported by the ESP32 WiFi events
     static THINGER_ERROR& wifi_disconnect_error(){
@@ -244,6 +300,9 @@ protected:
     const char* enterprise_password_ = nullptr;
     const char* enterprise_identity_ = nullptr;
     const char* enterprise_ca_ = nullptr;
+    // connecting to the enterprise network, or skipping it to try the other networks after it failed
+    bool enterprise_connecting_ = false;
+    bool enterprise_skip_ = false;
 #endif
 };
 

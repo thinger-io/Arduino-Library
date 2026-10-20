@@ -62,6 +62,9 @@ void setup() {
         }
     };
 
+    // configure wifi network
+    thing.add_wifi(SSID, SSID_PASSWORD);
+
     // example for controlling led
     thing["led"] << digitalPin(LED_BUILTIN);
     thing["led_r"] << digitalPin(LEDR);

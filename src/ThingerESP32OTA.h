@@ -19,6 +19,21 @@
 #endif
 #endif
 
+#ifdef THINGER_OTA_ROLLBACK
+#include <esp_ota_ops.h>
+
+// seconds that a new firmware has to connect to Thinger.io before rolling back to the previous one
+#ifndef THINGER_OTA_ROLLBACK_TIMEOUT
+    #define THINGER_OTA_ROLLBACK_TIMEOUT 300
+#endif
+
+// the Arduino core validates a new firmware on boot unless this hook returns true: ThingerESP32OTA validates it
+// once it connects to Thinger.io (define THINGER_OTA_ROLLBACK in a single source file)
+extern "C" bool verifyRollbackLater(){
+    return true;
+}
+#endif
+
 class ThingerESP32OTA : public ThingerOTA{
 
 public:
@@ -27,11 +42,38 @@ public:
     {
         // initialize a default block size for esp32
         set_block_size(block_size);
+#ifdef THINGER_OTA_ROLLBACK
+        start_rollback_check(client);
+#endif
     }
 
     virtual ~ThingerESP32OTA(){
 
     }
+
+#ifdef THINGER_OTA_ROLLBACK
+    // a firmware installed by OTA is pending verification until it connects to Thinger.io: otherwise, the
+    // bootloader rolls back to the previous firmware after the timeout, or if the device reboots before
+    static void start_rollback_check(ThingerClient& client){
+        esp_ota_img_states_t state;
+        if(esp_ota_get_state_partition(esp_ota_get_running_partition(), &state)!=ESP_OK) return;
+        if(state!=ESP_OTA_IMG_PENDING_VERIFY) return;
+        xTaskCreate([](void* param){
+            ThingerClient* client = (ThingerClient*) param;
+            unsigned long start = millis();
+            while(client->get_state()!=ThingerClient::THINGER_AUTHENTICATED){
+                if(millis()-start >= THINGER_OTA_ROLLBACK_TIMEOUT*1000UL){
+                    THINGER_DEBUG("OTA", "The new firmware cannot connect to Thinger.io, rolling back to the previous one...");
+                    esp_ota_mark_app_invalid_rollback_and_reboot();
+                }
+                vTaskDelay(pdMS_TO_TICKS(1000));
+            }
+            THINGER_DEBUG("OTA", "The new firmware connected to Thinger.io, so it is valid");
+            esp_ota_mark_app_valid_cancel_rollback();
+            vTaskDelete(nullptr);
+        }, "thinger_rollback", 4096, &client, 1, nullptr);
+    }
+#endif
 
     void fill_options(pson& options) override{
         // set espressif32 platform

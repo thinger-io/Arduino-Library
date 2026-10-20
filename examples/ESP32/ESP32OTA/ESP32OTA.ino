@@ -4,6 +4,9 @@
 // a device with different values (i.e., a firmware for another PCB version)
 // #define THINGER_OTA_CHECK(FIELD) FIELD("PCB_MODEL", "MY_BOARD") FIELD("PCB_VERSION", "V1")
 
+// roll back to the previous firmware if a new one cannot connect to Thinger.io in 5 minutes, or reboots before
+// #define THINGER_OTA_ROLLBACK
+
 #include <ThingerESP32.h>
 #include <ThingerESP32OTA.h>
 #include "arduino_secrets.h"
