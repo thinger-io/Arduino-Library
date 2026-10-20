@@ -1,3 +1,9 @@
+## 2.47.1
+
+#### Arduino Nano RP2040 Connect
+
+- **Fixed** OTA updates reported as successful, but the device rebooting with its previous firmware, when the new firmware does not include `ThingerMbedOTA.h` ([#46](https://github.com/thinger-io/Arduino-Library/issues/46)). The second stage bootloader (SFU) that applies the update is linked by `ThingerMbedOTA.h`, and it ignores a firmware without it, so the device could not be updated anymore. Now the update fails with `The firmware does not include ThingerMbedOTA.h, so it cannot be applied`. Tested on hardware with the Arduino Mbed OS Nano Boards core 4.6.0.
+
 ## 2.47.0
 
 #### OTA
