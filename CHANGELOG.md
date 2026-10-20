@@ -1,3 +1,11 @@
+## 2.46.1
+
+#### UNO R4 WiFi
+
+- **Fixed** the CA root certificate was not sent to the WiFi module, so the TLS connection was validated with its own CA bundle, and servers with a private CA or `set_root_ca()` did not work. Now it is validated with the library CA certificate, as on the ESP32.
+- **Fixed** build error with `THINGER_INSECURE_SSL`. The WiFi module cannot skip the certificate validation, so it uses its own CA bundle instead.
+- **Changed** OTA updates (`ThingerR4OTA`) are no longer experimental: tested on hardware with the WiFi module firmware 0.6.0. Note that old WiFi module firmwares (i.e., 0.2.1) cannot connect with TLS to Thinger.io, so update it with Tools > Firmware Updater in the Arduino IDE.
+
 ## 2.46.0
 
 #### WebConfig

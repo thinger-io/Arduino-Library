@@ -56,7 +56,7 @@ Each board family uses its own header. Every board in this table is compiled on 
 | ESP32 with Ethernet, ESP32-P4 | `ThingerESP32Eth.h` | Ethernet | `ThingerESP32OTA.h` |
 | ESP8266 | `ThingerESP8266.h` | WiFi | `ThingerESP8266OTA.h` |
 | Raspberry Pi Pico W, Pico 2 W ([Arduino-Pico](https://github.com/earlephilhower/arduino-pico) core) | `ThingerPicoW.h` | WiFi | `ThingerPicoOTA.h` |
-| Arduino UNO R4 WiFi | `ThingerR4WiFi.h` | WiFi | `ThingerR4OTA.h` (experimental) |
+| Arduino UNO R4 WiFi | `ThingerR4WiFi.h` | WiFi | `ThingerR4OTA.h` |
 | Arduino UNO Q | `ThingerUnoQ.h` | Through the Linux side ([Arduino_RouterBridge](https://github.com/arduino-libraries/Arduino_RouterBridge)) | |
 | Arduino Nano 33 IoT, MKR WiFi 1010 | `ThingerWiFiNINA.h` | WiFi | `ThingerWiFiNINAOTA.h` |
 | Arduino Nano RP2040 Connect | `ThingerMbed.h` | WiFi | `ThingerMbedOTA.h` |

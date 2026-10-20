@@ -77,10 +77,11 @@ public:
     bool connect_socket() override{
 
 #ifdef THINGER_INSECURE_SSL
-        client_.setInsecure();
-        THINGER_DEBUG("SSL/TLS", "Warning: TLS/SSL certificate will not be checked!")
+        // the WiFi module always validates the certificate: without a CA, it uses its own CA bundle
+        client_.setCACert(nullptr);
+        THINGER_DEBUG("SSL/TLS", "Warning: TLS/SSL certificate is checked with the CA bundle of the WiFi module!")
 #else
-        //client_.setTrustAnchors(&x509);
+        client_.setCACert(get_root_ca());
 #endif
         return client_.connect(get_host(), THINGER_SSL_PORT);
     }
