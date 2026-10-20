@@ -175,7 +175,9 @@ jobs:
           - name: Opta (Zephyr)
             fqbn: arduino:zephyr_main:opta
             core: arduino:zephyr_main@1.0.0
-            sketches: examples/Arduino/ArduinoZephyr
+            sketches: >-
+              examples/Arduino/ArduinoZephyr
+              examples/Arduino/ArduinoOptaZephyr
           - name: Pico W
             fqbn: rp2040:rp2040:rpipicow:flash=2097152_1048576
             core: rp2040:rp2040@6.3.0
