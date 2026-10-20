@@ -192,6 +192,9 @@ protected:
         WiFi.setTimeout(THINGER_WIFI_BEGIN_TIMEOUT);
 #elif defined(ARDUINO_ARCH_RP2040) && !defined(ARDUINO_ARCH_MBED)
         WiFi.beginNoBlock(ssid, password);
+#elif defined(ARDUINO_ARCH_ZEPHYR)
+        // scans the network to get its security, but does not wait for the connection
+        WiFi.begin(ssid, password, ENC_TYPE_UNKNOWN, false);
 #else
         WiFi.begin((char*) ssid, (char*) password);
 #endif

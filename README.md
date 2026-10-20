@@ -58,6 +58,7 @@ Each board family uses its own header. Every board in this table is compiled on 
 | Raspberry Pi Pico W, Pico 2 W ([Arduino-Pico](https://github.com/earlephilhower/arduino-pico) core) | `ThingerPicoW.h` | WiFi | `ThingerPicoOTA.h` |
 | Arduino UNO R4 WiFi | `ThingerR4WiFi.h` | WiFi | `ThingerR4OTA.h` |
 | Arduino UNO Q | `ThingerUnoQ.h` | Through the Linux side ([Arduino_RouterBridge](https://github.com/arduino-libraries/Arduino_RouterBridge)) | |
+| Arduino Portenta H7, Opta, GIGA R1 WiFi ([Zephyr](https://github.com/arduino/ArduinoCore-zephyr) core) | `ThingerZephyr.h` | WiFi | |
 | Arduino Nano 33 IoT, MKR WiFi 1010 | `ThingerWiFiNINA.h` | WiFi | `ThingerWiFiNINAOTA.h` |
 | Arduino Nano RP2040 Connect | `ThingerMbed.h` | WiFi | `ThingerMbedOTA.h` |
 | Arduino Portenta H7, Opta | `ThingerMbed.h`, `ThingerMbedEth.h` | WiFi, Ethernet | `ThingerPortentaOTA.h` |

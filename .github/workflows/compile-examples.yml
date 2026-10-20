@@ -168,6 +168,14 @@ jobs:
             fqbn: arduino:zephyr:unoq
             core: arduino:zephyr@1.0.0
             sketches: examples/Arduino/ArduinoUnoQ
+          - name: Portenta H7 (Zephyr)
+            fqbn: arduino:zephyr_main:portentah7
+            core: arduino:zephyr_main@1.0.0
+            sketches: examples/Arduino/ArduinoZephyr
+          - name: Opta (Zephyr)
+            fqbn: arduino:zephyr_main:opta
+            core: arduino:zephyr_main@1.0.0
+            sketches: examples/Arduino/ArduinoZephyr
           - name: Pico W
             fqbn: rp2040:rp2040:rpipicow:flash=2097152_1048576
             core: rp2040:rp2040@6.3.0
