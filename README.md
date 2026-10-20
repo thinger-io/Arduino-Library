@@ -79,6 +79,13 @@ The boards with an OTA header can be updated remotely over the Internet. The [Th
 
 ![OTA with Visual Studio Code](https://s3.eu-west-1.amazonaws.com/thinger.io.files/vscode/iot-ota.gif)
 
+To avoid installing a firmware built for another hardware (i.e., another PCB version, or WiFi instead of a cellular modem), declare its compatibility fields before including the OTA header. They are embedded in the firmware, and the extension (1.2.0 or later) compares the fields of the new firmware with the ones of the device, asking for confirmation if they differ. The device also rejects an update with different fields, unless the user confirmed it. Devices without them are updated as before.
+
+```cpp
+#define THINGER_OTA_CHECK(FIELD) FIELD("PCB_MODEL", "SENSOR_I2C") FIELD("PCB_VERSION", "V2")
+#include <ThingerESP32OTA.h>
+```
+
 ## Documentation
 
 Full documentation of the library, the boards and the platform: [docs.thinger.io](https://docs.thinger.io/devices/arduino).

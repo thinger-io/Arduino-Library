@@ -2,6 +2,7 @@
 #define THINGER_OTA_H
 
 #include "ThingerClient.h"
+#include "ThingerOTACheck.h"
 
 #ifndef THINGER_OTA_MD5_VERIFICATION
 #define THINGER_OTA_MD5_VERIFICATION 1
@@ -58,6 +59,11 @@ public:
             options["checksum"] = "md5";
 #endif
 
+#ifdef THINGER_OTA_CHECK
+            // compatibility fields of this firmware, checked by the uploader before an update
+            thinger_ota_check::fill(options["check"]);
+#endif
+
             // fill additional options
             fill_options(options);
         };
@@ -86,6 +92,18 @@ public:
             THINGER_DEBUG_VALUE("OTA", "Firmware: ", firmware);
             THINGER_DEBUG_VALUE("OTA", "Firmware Size: ", firmware_size_);
             THINGER_DEBUG_VALUE("OTA", "Chunk Size: ", chunk_size);
+
+#ifdef THINGER_OTA_CHECK
+            // reject a firmware for another hardware, unless it is forced (i.e., confirmed by the user)
+            bool force = in["force"];
+            if(!force && !thinger_ota_check::matches(in["check"])){
+                THINGER_DEBUG("OTA", "Firmware not compatible with this device (THINGER_OTA_CHECK)");
+                out["success"] = false;
+                out["error"] = "Firmware not compatible with this device (THINGER_OTA_CHECK)";
+                thinger_ota_check::fill(out["check"]);
+                return;
+            }
+#endif
 
             #if THINGER_OTA_MD5_VERIFICATION
             {

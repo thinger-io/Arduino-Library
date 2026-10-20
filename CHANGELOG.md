@@ -1,3 +1,13 @@
+## 2.47.0
+
+#### OTA
+
+- **Added** OTA compatibility check, to avoid installing a firmware built for another hardware (i.e., another PCB version, or a cellular modem instead of WiFi), based on the proposal of @swinp ([#60](https://github.com/thinger-io/Arduino-Library/pull/60), [vscode-extension#7](https://github.com/thinger-io/vscode-extension/issues/7)). Declare the compatibility fields before including the OTA header:
+  ```cpp
+  #define THINGER_OTA_CHECK(FIELD) FIELD("PCB_MODEL", "SENSOR_I2C") FIELD("PCB_VERSION", "V2")
+  ```
+  The fields are embedded in the firmware binary, and reported by the device in the `$ota/options` resource, so the VS Code extension (1.2.0 or later) compares the device with the new firmware and asks for confirmation if they differ. The device also checks them, so it rejects an update from any client whose fields are different or missing, unless it is forced (i.e., confirmed by the user). Devices without fields are updated as before. Available on every board with OTA updates. Up to 16 fields, with keys of up to 32 characters and values of up to 128 characters, checked at compile time.
+
 ## 2.46.1
 
 #### UNO R4 WiFi

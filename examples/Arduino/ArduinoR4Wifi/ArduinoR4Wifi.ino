@@ -1,5 +1,9 @@
 #define THINGER_SERIAL_DEBUG
 
+// compatibility fields of this firmware: the VS Code extension asks for confirmation before updating
+// a device with different values (i.e., a firmware for another PCB version)
+// #define THINGER_OTA_CHECK(FIELD) FIELD("PCB_MODEL", "MY_BOARD") FIELD("PCB_VERSION", "V1")
+
 #include <ThingerR4WiFi.h>
 #include <ThingerR4OTA.h>
 #include "arduino_secrets.h"
