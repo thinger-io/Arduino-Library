@@ -1,8 +1,8 @@
 #define THINGER_SERIAL_DEBUG
 
 // Boards with WiFi on the Arduino Zephyr core (Arduino Zephyr Boards), i.e., Portenta H7, Opta or GIGA R1 WiFi.
-// Install the Zephyr loader once with Tools > Burn Bootloader. If the WiFi does not start, install the WiFi module
-// firmware with the WiFiFirmwareUpdater example of the Arduino Mbed OS core (STM32H747_System library)
+// Install the Zephyr loader once with Tools > Burn Bootloader. If the WiFi does not start ("Communication with
+// WiFi module failed"), run the FlashFormat example of the Storage library (Zephyr core) to install its firmware
 #include <ThingerZephyr.h>
 #include "arduino_secrets.h"
 

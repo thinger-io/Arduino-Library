@@ -4,7 +4,7 @@
 
 - **Added** `ThingerZephyr` for boards with WiFi on the Arduino Zephyr core (Arduino Zephyr Boards), which replaces the Mbed OS core (end of life in July 2026): tested on Portenta H7 and Opta, with TLS certificate validation, and the non-blocking WiFi connection of 2.48.0. Examples: `ArduinoZephyr`, and `ArduinoOptaZephyr` for the Opta relays, status leds, user button and inputs.
   - It uses its own TCP/TLS client on the Zephyr sockets, as the TLS client of the core (`ZephyrSSLClient` 1.0.0) cannot connect: it sets a list of credential tags with uninitialized entries, and registers the credentials again on every connection.
-  - Install the Zephyr loader once with Tools > Burn Bootloader. If the WiFi does not start (`WiFi.status()` is `WL_NO_SHIELD`), install the WiFi module firmware with the `WiFiFirmwareUpdater` example of the Arduino Mbed OS core, as the Zephyr core reads it from the QSPI flash.
+  - Install the Zephyr loader once with Tools > Burn Bootloader. If the WiFi does not start (`Communication with WiFi module failed`, or `WiFi.status()` is `WL_NO_SHIELD`), run the `FlashFormat` example of the Storage library (Zephyr core) to install the WiFi module firmware, as described in the [core FAQ](https://github.com/arduino/ArduinoCore-zephyr#q-wi-fi-is-not-working-or-i-get-communication-with-wifi-module-failed-in-the-serial-monitor).
   - OTA updates will be available once the Arduino Zephyr core publishes its OTA support (already in development), as the current version (1.0.0) does not include it.
 
 ## 2.48.0

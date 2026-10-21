@@ -1,8 +1,8 @@
 #define THINGER_SERIAL_DEBUG
 
-// Arduino Opta on the Arduino Zephyr core (Arduino Zephyr Boards). Install the Zephyr loader once with
-// Tools > Burn Bootloader. If the WiFi does not start, install the WiFi module firmware with the
-// WiFiFirmwareUpdater example of the Arduino Mbed OS core (STM32H747_System library)
+// Arduino Opta on the Arduino Zephyr core (Arduino Zephyr Boards).
+// Install the Zephyr loader once with Tools > Burn Bootloader. If the WiFi does not start ("Communication with
+// WiFi module failed"), run the FlashFormat example of the Storage library (Zephyr core) to install its firmware
 #include <ThingerZephyr.h>
 #include "arduino_secrets.h"
 
