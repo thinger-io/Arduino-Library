@@ -82,7 +82,7 @@ protected:
                 THINGER_DEBUG_VALUE("NETWORK", "Modem Info: ", modem_.getModemInfo());
 
                 // Unlock your SIM card with a PIN if needed
-                if(pin_!=nullptr && modem_.getSimStatus() != 3){
+                if(pin_!=nullptr && modem_.getSimStatus() == SIM_LOCKED){
                     THINGER_DEBUG_VALUE("NETWORK", "Unlocking SIM... ", pin_)
                     if(!modem_.simUnlock(pin_)){
                         THINGER_DEBUG("NETWORK", "Cannot unlock SIM!")
