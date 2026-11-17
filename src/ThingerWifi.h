@@ -25,6 +25,8 @@
 #define THINGER_WIFI_H
 
 #include "ThingerClient.h"
+#include <memory>
+#include <new>
 
 // ESP32, ESP8266 and the Arduino-Pico core can keep several networks and connect to the strongest one
 #if defined(ESP8266)
@@ -227,19 +229,34 @@ protected:
 
 public:
 
-    // ESP32, ESP8266 and Pico W accept several networks (call it once per network)
+    // Credentials are copied; the caller may release or modify them after this call.
+    // Configure networks before starting the client, or otherwise serialize access.
+    // ESP32, ESP8266 and Pico W accept several networks (call it once per network).
     void add_wifi(const char* ssid, const char* password=nullptr)
     {
 #ifdef THINGER_WIFI_MULTI
-        if(wifi_multi_.addAP(ssid, password)) wifi_networks_++;
         // a single network connects directly, without scanning, so it can be a hidden network
-        if(wifi_ssid_!=nullptr) return;
+        if(wifi_ssid_!=nullptr){
+            if(wifi_multi_.addAP(ssid, password)) wifi_networks_++;
+            return;
+        }
 #endif
-        wifi_ssid_ = ssid;
-        wifi_password_ = password;
+        const char* values[] = {ssid, password};
+        const char* copies[2];
+        std::unique_ptr<char[]> storage;
+        if(!copy_wifi_fields(values, storage, copies)) return;
+#ifdef THINGER_WIFI_MULTI
+        // Do not publish the direct-network copy if registration failed.
+        if(!wifi_multi_.addAP(ssid, password)) return;
+        wifi_networks_++;
+#endif
+        wifi_storage_.swap(storage);
+        wifi_ssid_ = copies[0];
+        wifi_password_ = copies[1];
     }
 
 #if defined(ESP32) && CONFIG_ESP_WIFI_ENTERPRISE_SUPPORT
+    // The direct enterprise path also owns the identity and CA certificate text.
     // WPA2-Enterprise network with PEAP/EAP-MSCHAPv2, i.e., eduroam. The (outer) identity is the username
     // if empty. ca_pem is the CA certificate of the authentication server: without it, the device does not
     // validate the server and could send the credentials to a fake access point with the same SSID
@@ -248,11 +265,16 @@ public:
         if(identity==nullptr || strlen(identity)==0) identity = username;
         // validating the server requires a direct connection (only one network can use it)
         if(ca_pem!=nullptr && enterprise_ssid_==nullptr){
-            enterprise_ssid_ = ssid;
-            enterprise_username_ = username;
-            enterprise_password_ = password;
-            enterprise_identity_ = identity;
-            enterprise_ca_ = ca_pem;
+            const char* values[] = {ssid, username, password, identity, ca_pem};
+            const char* copies[5];
+            std::unique_ptr<char[]> storage;
+            if(!copy_wifi_fields(values, storage, copies)) return;
+            enterprise_storage_.swap(storage);
+            enterprise_ssid_ = copies[0];
+            enterprise_username_ = copies[1];
+            enterprise_password_ = copies[2];
+            enterprise_identity_ = copies[3];
+            enterprise_ca_ = copies[4];
             return;
         }
         if(wifi_multi_.addAP(ssid, password, username, identity)){
@@ -260,6 +282,45 @@ public:
             wifi_enterprise_ = true;
         }
     }
+#endif
+
+private:
+    // Build the whole credential set before replacing any live pointer. Preserve
+    // null fields (e.g. an open network's password) separately from empty strings.
+    template <size_t N>
+    static bool copy_wifi_fields(const char* const (&values)[N],
+                                std::unique_ptr<char[]>& storage,
+                                const char* (&copies)[N]){
+        size_t lengths[N];
+        size_t total = 0;
+        for(size_t i=0; i<N; ++i){
+            lengths[i] = values[i] ? strlen(values[i]) : 0;
+            if(values[i]){
+                if(lengths[i] == SIZE_MAX || lengths[i] + 1 > SIZE_MAX - total) return false;
+                total += lengths[i] + 1;
+            }
+        }
+        std::unique_ptr<char[]> next(total ? new(std::nothrow) char[total] : nullptr);
+        if(total && !next){
+            THINGER_DEBUG("NETWORK", "Cannot allocate WiFi credentials");
+            return false;
+        }
+        size_t offset = 0;
+        for(size_t i=0; i<N; ++i){
+            copies[i] = nullptr;
+            if(values[i]){
+                memcpy(next.get() + offset, values[i], lengths[i] + 1);
+                copies[i] = next.get() + offset;
+                offset += lengths[i] + 1;
+            }
+        }
+        storage.swap(next);
+        return true;
+    }
+
+    std::unique_ptr<char[]> wifi_storage_;
+#if defined(ESP32) && CONFIG_ESP_WIFI_ENTERPRISE_SUPPORT
+    std::unique_ptr<char[]> enterprise_storage_;
 #endif
 
 protected:
