@@ -132,6 +132,16 @@ protected:
             if(config_callback_!=NULL) config_callback_(config);
         }
 
+        // Restore saved parameters before either path can open the portal.
+        // Missing or non-string entries keep their declared defaults.
+        if(thinger_config){
+            for(int i=0; i<custom_params_; i++){
+                if(config[parameters_[i]->getID()].is_string()){
+                    parameters_[i]->setValue(config[parameters_[i]->getID()], parameters_[i]->getValueLength());
+                }
+            }
+        }
+
         WiFiManager wifiManager;
 #ifdef _DEBUG_
             wifiManager.setDebugOutput(true);
@@ -159,12 +169,6 @@ protected:
             failed_connections_ = 0;
             THINGER_DEBUG("_CONFIG", "Cannot connect to the saved network, starting Webconfig...");
             wifiManager.setConfigPortalTimeout(THINGER_WEBCONFIG_PORTAL_TIMEOUT);
-            // show the current values of the custom parameters, so they are not reset
-            for(int i=0; i<custom_params_; i++){
-                if(config[parameters_[i]->getID()].is_string()){
-                    parameters_[i]->setValue(config[parameters_[i]->getID()], parameters_[i]->getValueLength());
-                }
-            }
             // on timeout, keep the configuration and the error, and try the saved network again
             return run_config_portal(wifiManager, false);
         // don't have credentials or Wifi, initiate config portal
