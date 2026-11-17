@@ -60,9 +60,9 @@ public:
         wifi_callback_(NULL), 
         captive_portal_callback_(NULL)
     {
-        strcpy(user_, user);
-        strcpy(device_, device);
-        strcpy(credential_, credential);
+        copy_credential(user_, user);
+        copy_credential(device_, device);
+        copy_credential(credential_, credential);
     }
 
     ~ThingerWebConfig(){
@@ -92,15 +92,15 @@ public:
     }
 
     void set_user(const char*user){
-        strcpy(user_, user);
+        copy_credential(user_, user);
     }
 
     void set_device(const char*device){
-        strcpy(device_, device);
+        copy_credential(device_, device);
     }
 
     void set_credential(const char*credential){
-        strcpy(credential_, credential);
+        copy_credential(credential_, credential);
     }
 
 protected:
@@ -121,15 +121,23 @@ protected:
 
         if(thinger_config){
             THINGER_DEBUG("_CONFIG", "Config File Decoded!");
-            if(strlen(user_)==0)        strcpy(user_, config["user"]);
-            if(strlen(device_)==0)      strcpy(device_, config["device"]);
-            if(strlen(credential_)==0)  strcpy(credential_, config["credential"]);
+            const char* saved_user = config["user"];
+            const char* saved_device = config["device"];
+            const char* saved_credential = config["credential"];
+            thinger_config = (user_[0] || valid_credential(saved_user)) &&
+                             (device_[0] || valid_credential(saved_device)) &&
+                             (credential_[0] || valid_credential(saved_credential));
+            if(thinger_config){
+                if(!user_[0]) copy_credential(user_, saved_user);
+                if(!device_[0]) copy_credential(device_, saved_device);
+                if(!credential_[0]) copy_credential(credential_, saved_credential);
+            }
 
             THINGER_DEBUG_VALUE("_CONFIG", "User: ", user_);
             THINGER_DEBUG_VALUE("_CONFIG", "Device: ", device_);
             THINGER_DEBUG_VALUE("_CONFIG", "Credential: ", credential_);
 
-            if(config_callback_!=NULL) config_callback_(config);
+            if(thinger_config && config_callback_!=NULL) config_callback_(config);
         }
 
         WiFiManager wifiManager;
@@ -179,9 +187,9 @@ protected:
 
     // runs the config portal and saves the configuration (if not connected, only when save_always)
     bool run_config_portal(WiFiManager& wifiManager, bool save_always){
-        WiFiManagerParameter user_parameter("user", "User Id", user_, 40);
-        WiFiManagerParameter device_parameter("device", "Device Id", device_, 40);
-        WiFiManagerParameter credential_parameter("credential", "Device Credential", credential_, 40);
+        WiFiManagerParameter user_parameter("user", "User Id", user_, credential_max_length);
+        WiFiManagerParameter device_parameter("device", "Device Id", device_, credential_max_length);
+        WiFiManagerParameter credential_parameter("credential", "Device Credential", credential_, credential_max_length);
 
         // add credentials parameters if not set at startup
         if(strlen(user_)==0)        wifiManager.addParameter(&user_parameter);
@@ -201,10 +209,16 @@ protected:
             return false;
         }
 
-        // store new values (if it was empty)
-        if(strlen(user_)==0)        strcpy(user_, user_parameter.getValue());
-        if(strlen(device_)==0)      strcpy(device_, device_parameter.getValue());
-        if(strlen(credential_)==0)  strcpy(credential_, credential_parameter.getValue());
+        // Validate the complete update before modifying or saving credentials.
+        if((!user_[0] && !valid_credential(user_parameter.getValue())) ||
+           (!device_[0] && !valid_credential(device_parameter.getValue())) ||
+           (!credential_[0] && !valid_credential(credential_parameter.getValue()))){
+            if(wifi_callback_!=NULL) wifi_callback_(false);
+            return false;
+        }
+        if(!user_[0]) copy_credential(user_, user_parameter.getValue());
+        if(!device_[0]) copy_credential(device_, device_parameter.getValue());
+        if(!credential_[0]) copy_credential(credential_, credential_parameter.getValue());
 
         pson config;
         config["user"] = (const char *) user_;
@@ -223,9 +237,27 @@ protected:
     }
 
 private:
-    char user_[40];
-    char device_[40];
-    char credential_[40];
+    static const size_t credential_max_length = 40;
+
+    static bool valid_credential(const char* value){
+        if(value){
+            for(size_t i=0; i<=credential_max_length; ++i){
+                if(value[i]=='\0') return true;
+            }
+        }
+        THINGER_DEBUG("_CONFIG", "Invalid credential length (maximum 40 characters)");
+        return false;
+    }
+
+    static bool copy_credential(char* destination, const char* value){
+        if(!valid_credential(value)) return false;
+        memmove(destination, value, strlen(value) + 1);
+        return true;
+    }
+
+    char user_[credential_max_length + 1] = {};
+    char device_[credential_max_length + 1] = {};
+    char credential_[credential_max_length + 1] = {};
     WiFiManagerParameter *parameters_[MAX_ADDITIONAL_PARAMETERS] ;
     int custom_params_;
     uint8_t failed_connections_ = 0;
