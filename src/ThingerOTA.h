@@ -70,6 +70,11 @@ public:
 
         // resource for starting ota updates
         (client["$ota"]["begin"] = [&](pson& in, pson& out){
+            if(!is_enabled()){
+                out["success"] = false;
+                out["error"] = "OTA is disabled";
+                return;
+            }
             if(in.is_empty() || running_){
                 out["success"] = false;
                 return;
