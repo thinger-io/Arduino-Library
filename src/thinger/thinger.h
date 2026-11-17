@@ -58,7 +58,9 @@ namespace thinger{
                 keep_alive_response(true)
         {
 #ifdef THINGER_FREE_RTOS_MULTITASK
-            semaphore_ = xSemaphoreCreateMutex();
+            // Acknowledgment waits may dispatch requests that send a nested response.
+            semaphore_ = xSemaphoreCreateRecursiveMutex();
+            configASSERT(semaphore_ != NULL);
 #endif
         }
 
@@ -113,11 +115,11 @@ namespace thinger{
 #ifdef THINGER_MULTITASK
 #if defined(THINGER_FREE_RTOS_MULTITASK)
         void lock(){
-            xSemaphoreTake(semaphore_, portMAX_DELAY);
+            xSemaphoreTakeRecursive(semaphore_, portMAX_DELAY);
         }
 
         void unlock(){
-            xSemaphoreGive(semaphore_);
+            xSemaphoreGiveRecursive(semaphore_);
         }
 #elif defined(THINGER_MBED_MULTITASK)
         void lock(){
