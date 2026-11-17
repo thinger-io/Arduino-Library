@@ -269,16 +269,23 @@ protected:
             THINGER_DEBUG_VALUE("_MEMORY", "Writing to Output Buffer: ", size)
             #endif
 
+            // Reject an overflowing size before allocation or copying.
+            if(size > SIZE_MAX - out_size_) return false;
             #if THINGER_OUTPUT_BUFFER_GROWING_SIZE > 0
             // check if it is necessary to increase output size
             if(out_size_+size>out_total_size_){
                 // compute new buffer size
-                out_total_size_ += (size/THINGER_OUTPUT_BUFFER_GROWING_SIZE + (size % THINGER_OUTPUT_BUFFER_GROWING_SIZE != 0)) * THINGER_OUTPUT_BUFFER_GROWING_SIZE;
-                // reallocate buffer
-                void * new_buffer = realloc(out_buffer_, out_total_size_);
+                const size_t required_size = out_size_ + size;
+                const size_t remainder = required_size % THINGER_OUTPUT_BUFFER_GROWING_SIZE;
+                const size_t padding = remainder ? THINGER_OUTPUT_BUFFER_GROWING_SIZE - remainder : 0;
+                if(padding > SIZE_MAX - required_size) return false;
+                const size_t new_total_size = required_size + padding;
+                // Commit capacity only after the allocation succeeds.
+                void * new_buffer = realloc(out_buffer_, new_total_size);
                 // increase current total size
                 if(new_buffer!=NULL){
                     out_buffer_ = (uint8_t*) new_buffer;
+                    out_total_size_ = new_total_size;
                     #ifdef _DEBUG_MEMORY_
                     THINGER_DEBUG_VALUE("_MEMORY", "Increased buffer size to: ", out_total_size_)
                     THINGER_DEBUG_VALUE("_MEMORY", "Realloc Address: ", (unsigned long) out_buffer_)
@@ -353,21 +360,21 @@ protected:
 
 #ifndef THINGER_DISABLE_OUTPUT_BUFFER
     bool flush_out_buffer(){
+        bool success = true;
         if(out_buffer_!=NULL && out_size_>0){
-            bool success = client_write((const char*)out_buffer_, out_size_);
+            success = client_write((const char*)out_buffer_, out_size_);
 
 #ifdef _DEBUG_MEMORY_
             THINGER_DEBUG_VALUE("_MEMORY", "Releasing memory size: ", out_total_size_)
             THINGER_DEBUG_VALUE("_MEMORY", "Release Address: ", (unsigned long) out_buffer_)
 #endif
 
-            free(out_buffer_);
-            out_buffer_ = NULL;
-            out_size_ = 0;
-            out_total_size_ = 0;
-            return success;
         }
-        return true;
+        free(out_buffer_);
+        out_buffer_ = NULL;
+        out_size_ = 0;
+        out_total_size_ = 0;
+        return success;
     }
 #endif
 
