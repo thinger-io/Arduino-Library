@@ -233,6 +233,7 @@ public:
                 out["success"] = false;
                 out["error"] = "Invalid input type received";
                 running_ = false;
+                return;
             }
 
             // get buffer
