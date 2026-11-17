@@ -38,6 +38,10 @@ public:
         resource_(client["$console"]),
         prompt_(client.get_device_id())
     {
+#ifdef THINGER_FREE_RTOS_MULTITASK
+        tx_mutex_ = xSemaphoreCreateMutex();
+        configASSERT(tx_mutex_ != NULL);
+#endif
         tx_buffer_[BUFFER_SIZE] = 0;
 
         register_commands();
@@ -181,6 +185,9 @@ public:
     }
     
     virtual ~ThingerConsole(){
+#ifdef THINGER_FREE_RTOS_MULTITASK
+        vSemaphoreDelete(tx_mutex_);
+#endif
     }
 
     bool is_running(){
@@ -193,10 +200,20 @@ public:
     }
     
     size_t write(uint8_t value) override{
+        uint8_t pending[BUFFER_SIZE];
+        size_t size = 0;
+        lock_tx();
+        // Every full buffer is detached before releasing the lock.
+        if(tx_index_ >= BUFFER_SIZE){
+            unlock_tx();
+            return 0;
+        }
         tx_buffer_[tx_index_++] = value;
         if(value=='\n' || tx_index_==BUFFER_SIZE){
-            flush();
+            size = take_tx_buffer(pending);
         }
+        unlock_tx();
+        send_tx_buffer(pending, size);
         return 1;
     }
 
@@ -223,12 +240,11 @@ public:
     }
 
     void flush() override{
-        if(tx_index_>0 && resource_.stream_enabled()){
-            pson data;
-            data.set_bytes(tx_buffer_, tx_index_);
-            client_.stream_data(resource_, data);
-        }
-        tx_index_=0;
+        uint8_t pending[BUFFER_SIZE];
+        lock_tx();
+        size_t size = take_tx_buffer(pending);
+        unlock_tx();
+        send_tx_buffer(pending, size);
     }
 
     void set_prompt(const char* prompt){
@@ -254,6 +270,39 @@ public:
     }
 
 protected:
+
+    void lock_tx(){
+#if defined(THINGER_FREE_RTOS_MULTITASK)
+        xSemaphoreTake(tx_mutex_, portMAX_DELAY);
+#elif defined(THINGER_MBED_MULTITASK)
+        tx_mutex_.lock();
+#endif
+    }
+
+    void unlock_tx(){
+#if defined(THINGER_FREE_RTOS_MULTITASK)
+        xSemaphoreGive(tx_mutex_);
+#elif defined(THINGER_MBED_MULTITASK)
+        tx_mutex_.unlock();
+#endif
+    }
+
+    // Called only with the buffer lock held; performs no network operations.
+    size_t take_tx_buffer(uint8_t* pending){
+        size_t size = tx_index_;
+        memcpy(pending, tx_buffer_, size);
+        tx_index_ = 0;
+        return size;
+    }
+
+    void send_tx_buffer(uint8_t* pending, size_t size){
+        // Never hold the console lock while acquiring the client lock.
+        if(size>0 && resource_.stream_enabled()){
+            pson data;
+            data.set_bytes(pending, size);
+            client_.stream_data(resource_, data);
+        }
+    }
 
     void register_commands(){
         
@@ -389,6 +438,11 @@ protected:
     const char* prompt_ = nullptr;
 
     // tx buffer
+#if defined(THINGER_FREE_RTOS_MULTITASK)
+    SemaphoreHandle_t tx_mutex_ = nullptr;
+#elif defined(THINGER_MBED_MULTITASK)
+    rtos::Mutex tx_mutex_;
+#endif
     uint8_t tx_buffer_[BUFFER_SIZE+1];
     size_t tx_index_ = 0;
 
