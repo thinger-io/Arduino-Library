@@ -55,11 +55,16 @@ protected:
     virtual bool write(const void* buffer, size_t size){
         size_t wrote = file_.write((const uint8_t*)buffer, size);
         protoson::pson_encoder::write(buffer, wrote);
+        if(wrote != size) success_ = false;
         return wrote == size;
     }
 
+public:
+    bool success() const { return success_; }
+
 private:
     File& file_;
+    bool success_ = true;
 };
 
 
@@ -99,17 +104,24 @@ class ThingerESP8266WebConfig : public ThingerWebConfig<ThingerESP8266>{
     bool save_configuration(pson& config) override{
         THINGER_DEBUG("_CONFIG", "Updating Device Info...");
         if (LittleFS.begin()) {
-            File configFile = LittleFS.open(CONFIG_FILE, "w");
+            // Keep the previous configuration until the complete replacement is ready.
+            const char* temporary = CONFIG_FILE ".tmp";
+            File configFile = LittleFS.open(temporary, "w");
+            bool result = false;
             if (configFile) {
                 pson_littlefs_encoder encoder(configFile);
                 encoder.encode(config);
+                configFile.flush();
+                bool written = encoder.success();
                 configFile.close();
-                THINGER_DEBUG("_CONFIG", "Done!");
-                return true;
-            } else {
-                THINGER_DEBUG("_CONFIG", "Failed to open config file for writing!");
+                if(written) result = LittleFS.rename(temporary, CONFIG_FILE);
             }
-            LittleFS.end();
+            if(!result){
+                LittleFS.remove(temporary);
+                LittleFS.end();
+            }
+            THINGER_DEBUG("_CONFIG", result ? "Done!" : "Failed to save config!");
+            return result;
         }
         return false;
     }

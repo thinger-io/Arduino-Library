@@ -215,7 +215,11 @@ protected:
             config[parameters_[i]->getID()] = parameters_[i]->getValue();
         }
 
-        save_configuration(config);
+        if(!save_configuration(config)){
+            THINGER_DEBUG("_CONFIG", "Failed to persist configuration");
+            if(wifi_callback_!=NULL) wifi_callback_(false);
+            return false;
+        }
 
         if(config_callback_!=NULL) config_callback_(config);
         if(wifi_callback_!=NULL) wifi_callback_(wifiConnected);
