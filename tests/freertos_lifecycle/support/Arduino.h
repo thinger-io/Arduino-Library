@@ -37,26 +37,44 @@ static std::atomic<bool> hold_entry{false},fail_create{false},fail_semaphore{fal
 struct SelfDeleted {};
 struct TestSemaphore {
     std::mutex mutex;std::condition_variable changed;int count;
+    std::recursive_mutex recursive; // used by xSemaphore*Recursive (thinger.h, PR #64)
     explicit TestSemaphore(int initial):count(initial){}
 };
 using SemaphoreHandle_t=TestSemaphore*;
 #define portMAX_DELAY 0xffffffffU
 #define pdPASS 1
+#define pdTRUE 1
+using TickType_t=unsigned;
+inline TickType_t xTaskGetTickCount(){
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+}
 #define configASSERT(x) assert(x)
 inline SemaphoreHandle_t xSemaphoreCreateMutex(){
     if(fail_semaphore.exchange(false))return nullptr;
     return new TestSemaphore(1);
 }
 inline SemaphoreHandle_t xSemaphoreCreateBinary(){return new TestSemaphore(0);}
-inline int xSemaphoreTake(SemaphoreHandle_t s,unsigned){
-    std::unique_lock<std::mutex> lock(s->mutex);
-    s->changed.wait(lock,[&]{return s->count>0;});--s->count;return 1;
+static std::atomic<int> indefinite_waiters{0};
+inline int xSemaphoreTake(SemaphoreHandle_t s,unsigned timeout){
+    std::unique_lock<std::mutex> guard(s->mutex);
+    if(s->count==0){
+        if(timeout==portMAX_DELAY){
+            ++indefinite_waiters;
+            s->changed.wait(guard,[&]{return s->count>0;});
+            --indefinite_waiters;
+        }else if(!s->changed.wait_for(guard,std::chrono::milliseconds(timeout),[&]{return s->count>0;}))return 0;
+    }
+    --s->count;return 1;
 }
 inline int xSemaphoreGive(SemaphoreHandle_t s){
     std::lock_guard<std::mutex> lock(s->mutex);
     ++s->count;s->changed.notify_one();return 1;
 }
 inline void vSemaphoreDelete(SemaphoreHandle_t s){delete s;}
+inline SemaphoreHandle_t xSemaphoreCreateRecursiveMutex(){return new TestSemaphore(1);}
+inline int xSemaphoreTakeRecursive(SemaphoreHandle_t s,unsigned){s->recursive.lock();return 1;}
+inline int xSemaphoreGiveRecursive(SemaphoreHandle_t s){s->recursive.unlock();return 1;}
 inline TaskHandle_t xTaskGetCurrentTaskHandle(){return current_task;}
 inline void vTaskDelay(unsigned){std::this_thread::sleep_for(std::chrono::milliseconds(1));}
 inline void vTaskDelete(TaskHandle_t handle){
