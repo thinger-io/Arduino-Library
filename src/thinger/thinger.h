@@ -133,14 +133,19 @@ namespace thinger{
 #endif
 
         void stop_streams(){
-            if(thinger_resource::get_streaming_counter()>0) {
-                thinger_map<thinger_resource>::entry* current = resources_.begin();
-                while(current!=NULL){
-                    current->value_.disable_streaming();
-                    current = current->next_;
-                }
+            stop_nested_streams(resources_);
+        }
+
+    private:
+        static void stop_nested_streams(thinger_map<thinger_resource>& resources){
+            for(auto* entry = resources.begin(); entry; entry = entry->next_){
+                auto& resource = entry->value_;
+                if(resource.stream_enabled()) resource.disable_streaming();
+                stop_nested_streams(resource.get_resources());
             }
         }
+
+    public:
 
         thinger_resource & operator[](const char* res){
             return resources_[res];
