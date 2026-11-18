@@ -1,5 +1,6 @@
 #include "Arduino.h"
 #include <vector>
+#include <stdlib.h> // before the realloc macro: <stdlib.h> declares "using std::realloc"
 static bool fail_next=false;
 static void* test_realloc(void* ptr,size_t size){
     if(fail_next){fail_next=false;return nullptr;}
