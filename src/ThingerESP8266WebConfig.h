@@ -25,6 +25,7 @@
 #define THINGER_ESP8266_WEBCONFIG_H
 
 #include <LittleFS.h>
+#include <flash_hal.h>
 #include "ThingerESP8266.h"
 #include "ThingerWebConfig.h"
 
@@ -55,11 +56,16 @@ protected:
     virtual bool write(const void* buffer, size_t size){
         size_t wrote = file_.write((const uint8_t*)buffer, size);
         protoson::pson_encoder::write(buffer, wrote);
+        if(wrote != size) success_ = false;
         return wrote == size;
     }
 
+public:
+    bool success() const { return success_; }
+
 private:
     File& file_;
+    bool success_ = true;
 };
 
 
@@ -74,23 +80,12 @@ class ThingerESP8266WebConfig : public ThingerWebConfig<ThingerESP8266>{
 
     bool clean_credentials() override{
         THINGER_DEBUG("_CONFIG", "Cleaning credentials...");
-        // clean Thinger.io credentials from file system
-        if(LittleFS.begin()) {
-            THINGER_DEBUG("_CONFIG", "FS Mounted!");
-            if (LittleFS.exists(CONFIG_FILE)) {
-                THINGER_DEBUG("_CONFIG", "Removing Config File...");
-                if(LittleFS.remove(CONFIG_FILE)){
-                    THINGER_DEBUG("_CONFIG", "Config file removed!");
-                    return true;
-                }else{
-                    THINGER_DEBUG("_CONFIG", "Cannot delete config file!");
-                }
-            }else{
-                THINGER_DEBUG("_CONFIG", "No config file to delete!");
-            }
-            LittleFS.end();
-        }
-        return false;
+        FS* storage = mount_fs();
+        if(!storage) return false;
+        bool removed = storage->exists(CONFIG_FILE) && storage->remove(CONFIG_FILE);
+        if(storage!=&LittleFS) storage->end();
+        THINGER_DEBUG("_CONFIG", removed ? "Config file removed!" : "No config file to delete!");
+        return removed;
     }
 
 
@@ -98,48 +93,56 @@ class ThingerESP8266WebConfig : public ThingerWebConfig<ThingerESP8266>{
 
     bool save_configuration(pson& config) override{
         THINGER_DEBUG("_CONFIG", "Updating Device Info...");
-        if (LittleFS.begin()) {
-            File configFile = LittleFS.open(CONFIG_FILE, "w");
-            if (configFile) {
-                pson_littlefs_encoder encoder(configFile);
-                encoder.encode(config);
-                configFile.close();
-                THINGER_DEBUG("_CONFIG", "Done!");
-                return true;
-            } else {
-                THINGER_DEBUG("_CONFIG", "Failed to open config file for writing!");
-            }
-            LittleFS.end();
+        FS* storage = mount_fs();
+        if(!storage) return false;
+        // Keep the previous configuration until the complete replacement is ready.
+        const char* temporary = CONFIG_FILE ".tmp";
+        File configFile = storage->open(temporary, "w");
+        bool result = false;
+        if (configFile) {
+            pson_littlefs_encoder encoder(configFile);
+            encoder.encode(config);
+            configFile.flush();
+            bool written = encoder.success();
+            configFile.close();
+            if(written) result = storage->rename(temporary, CONFIG_FILE);
         }
-        return false;
+        if(!result) storage->remove(temporary);
+        if(storage!=&LittleFS) storage->end();
+        THINGER_DEBUG("_CONFIG", result ? "Done!" : "Failed to save config!");
+        return result;
     }
 
     bool load_configuration(pson& config) override{
         THINGER_DEBUG("_CONFIG", "Mounting FS...");
-        if (LittleFS.begin()) {
-            THINGER_DEBUG("_CONFIG", "FS Mounted!");
-            if (LittleFS.exists(CONFIG_FILE)) {
-                //file exists, reading and loading
-                THINGER_DEBUG("_CONFIG", "Opening Config File...");
-                File configFile = LittleFS.open(CONFIG_FILE, "r");
-                if(configFile){
-                    THINGER_DEBUG("_CONFIG", "Config File is Open!");
-                    pson_littlefs_decoder decoder(configFile);
-                    bool result = decoder.decode(config);
-                    configFile.close();
-                    return result;
-                }else{
-                    THINGER_DEBUG("_CONFIG", "Config File is Not Available!");
-                }
-            }
-            // close LittleFS
-            LittleFS.end();
-        } else {
+        FS* storage = mount_fs();
+        if(!storage){
             THINGER_DEBUG("_CONFIG", "Failed to Mount FS!");
+            return false;
         }
-        return false;
+        bool result = false;
+        File configFile = storage->exists(CONFIG_FILE) ? storage->open(CONFIG_FILE, "r") : File();
+        if(configFile){
+            pson_littlefs_decoder decoder(configFile);
+            result = decoder.decode(config);
+            configFile.close();
+        }
+        if(storage!=&LittleFS) storage->end();
+        return result;
     }
 
+    private:
+
+    // Borrow a sketch mount, otherwise mount the same partition using a private
+    // non-formatting adapter. The global LittleFS configuration has no getter.
+    static FS* mount_fs(){
+        FSInfo info;
+        if(LittleFS.info(info)) return &LittleFS;
+        static FS storage(fs::FSImplPtr(new littlefs_impl::LittleFSImpl(
+            FS_PHYS_ADDR, FS_PHYS_SIZE, FS_PHYS_PAGE, FS_PHYS_BLOCK, 1)));
+        if(!storage.setConfig(LittleFSConfig(false)) || !storage.begin()) return nullptr;
+        return &storage;
+    }
 
 };
 
