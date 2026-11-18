@@ -238,7 +238,10 @@ protected:
             int read = client_.readBytes((char*)buffer+total_read, size-total_read);
             #endif
             //THINGER_DEBUG_VALUE("THINGER", "Read bytes: ", read);
-            total_read += read;
+            if(read>0){
+                total_read += read;
+                start = millis(); // Measure inactivity since the most recent progress.
+            }
 
             /**
              * Check reading timeout
