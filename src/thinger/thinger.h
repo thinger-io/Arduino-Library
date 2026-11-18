@@ -218,7 +218,7 @@ namespace thinger{
             message.set_signal_flag(thinger_message::CALL_DEVICE);
             message.set_identifier(device_name);
             message.resources().add(resource_name);
-            resource.fill_output(message.get_data());
+            th_synchronized(resource.fill_output(message.get_data());)
             return send_message_with_ack(message, confirm_call);
         }
 
@@ -258,7 +258,7 @@ namespace thinger{
             thinger_message message;
             message.set_signal_flag(thinger_message::CALL_ENDPOINT);
             message.set_identifier(endpoint_name);
-            resource.fill_output(message.get_data());
+            th_synchronized(resource.fill_output(message.get_data());)
             return send_message_with_ack(message, confirm_call);
         }
 
@@ -296,7 +296,7 @@ namespace thinger{
             thinger_message message;
             message.set_signal_flag(thinger_message::BUCKET_DATA);
             message.set_identifier(bucket_id);
-            resource.fill_output(message.get_data());
+            th_synchronized(resource.fill_output(message.get_data());)
             return send_message_with_ack(message, confirm_write);
         }
 
@@ -319,8 +319,8 @@ namespace thinger{
             thinger_message message;
             message.set_stream_id(resource.get_stream_id());
             message.set_signal_flag(type);
-            // TODO modify and update servers to support resource.fill_output(message.get_data());
-            resource.fill_api_io(message.get_data());
+            // TODO modify and update servers to support th_synchronized(resource.fill_output(message.get_data());)
+            th_synchronized(resource.fill_api_io(message.get_data());)
             send_message(message);
         }
 
@@ -593,7 +593,7 @@ namespace thinger{
                                 }
                             // fll the api over the specified resource
                             }else{
-                                thing_resource->fill_api_io(response.get_data());
+                                th_synchronized(thing_resource->fill_api_io(response.get_data());)
                             }
 
                         // just want to interact with the resource itself...
@@ -605,7 +605,7 @@ namespace thinger{
 
                             // the resource is available, so, handle its i/o.
                             }else{
-                                thing_resource->handle_request(request, response);
+                                th_synchronized(thing_resource->handle_request(request, response);)
                                 // stream enabled over a resource input -> notify the current state
                                 if(thing_resource->stream_enabled() && (thing_resource->get_io_type()==thinger_resource::pson_in || thing_resource->get_io_type()==thinger_resource::pson_in_pson_out)){
                                     // send normal response
