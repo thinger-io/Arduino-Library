@@ -133,11 +133,19 @@ namespace thinger{
 #endif
 
         void stop_streams(){
-            // Event streams have a stream ID but do not increment the sampling counter.
-            for(auto* entry = resources_.begin(); entry; entry = entry->next_){
-                if(entry->value_.stream_enabled()) entry->value_.disable_streaming();
+            stop_nested_streams(resources_);
+        }
+
+    private:
+        static void stop_nested_streams(thinger_map<thinger_resource>& resources){
+            for(auto* entry = resources.begin(); entry; entry = entry->next_){
+                auto& resource = entry->value_;
+                if(resource.stream_enabled()) resource.disable_streaming();
+                stop_nested_streams(resource.get_resources());
             }
         }
+
+    public:
 
         thinger_resource & operator[](const char* res){
             return resources_[res];
