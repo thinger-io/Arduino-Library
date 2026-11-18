@@ -83,7 +83,8 @@ public:
 
     bool empty()
     {
-        return head_ == last_;
+        // head_==last_ is also true with a single entry
+        return head_ == NULL;
     }
 
     T* find(const char* key)
