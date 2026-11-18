@@ -112,6 +112,8 @@ public:
 #if THINGER_OTA_COMPRESSION
         if(is_compressed()){
             // initialize compression parameters (0 disabled)
+            output_offset_ = 0;
+            inflater_finished_ = false;
             remaining_compressed_ = options["compressed_size"];
             if(init && remaining_compressed_){
                 inflator_ = tinfl_decompressor{};
@@ -130,10 +132,12 @@ public:
         }
 
         static uint8_t out_buf[32768];
-        static uint8_t *next_out = out_buf;
+        uint8_t* next_out = out_buf + output_offset_;
         int status = TINFL_STATUS_NEEDS_MORE_INPUT;
 
-        while(bytes > 0 && Update.remaining() > 0 && status > TINFL_STATUS_DONE) {
+        // the loop does not stop when Update.remaining() reaches 0: the output buffer may be flushed with the last
+        // byte of the firmware (size multiple of 32 KiB) before the end of the zlib stream (adler32) is consumed
+        while(bytes > 0 && status > TINFL_STATUS_DONE) {
             size_t in_bytes = bytes; /* input remaining */
             size_t out_bytes = out_buf + sizeof(out_buf) - next_out; /* output space remaining */
             int flags = TINFL_FLAG_PARSE_ZLIB_HEADER;
@@ -145,13 +149,18 @@ public:
                             out_buf, next_out, &out_bytes,
                             flags);
 
+            if(in_bytes > remaining_compressed_ || (!in_bytes && !out_bytes && status > TINFL_STATUS_DONE)){
+                state["error"] = "Invalid compressed stream";
+                return false;
+            }
+            inflater_finished_ = status == TINFL_STATUS_DONE;
             remaining_compressed_ -= in_bytes;
             bytes -= in_bytes;
             buffer += in_bytes;
 
             next_out += out_bytes;
             size_t bytes_in_out_buf = next_out - out_buf;
-            if (status == TINFL_STATUS_DONE || bytes_in_out_buf == sizeof(out_buf)) {
+            if (bytes_in_out_buf > 0 && (status == TINFL_STATUS_DONE || bytes_in_out_buf == sizeof(out_buf))) {
                 if(!do_write(out_buf, bytes_in_out_buf, state)) return false;
                 update_firmware_checksum(out_buf, bytes_in_out_buf);
                 next_out = out_buf;
@@ -164,6 +173,7 @@ public:
         }
         
         // success if all bytes where consumed
+        output_offset_ = next_out - out_buf;
         return bytes==0;
     }       
 #else
@@ -178,6 +188,12 @@ public:
     }
 
     bool end_ota(pson& state) override{
+#if THINGER_OTA_COMPRESSION
+        if(is_compressed() && (!inflater_finished_ || remaining_compressed_)){
+            state["error"] = "Incomplete compressed stream";
+            return false;
+        }
+#endif
         if(!Update.end()){
             state["error"] = Update.errorString();
             return false;
@@ -204,6 +220,8 @@ protected:
 private:
     char md5_checksum_[33];
 #if THINGER_OTA_COMPRESSION
+    size_t output_offset_ = 0;
+    bool inflater_finished_ = false;
     size_t remaining_compressed_ = 0;
     tinfl_decompressor inflator_;
 #endif
