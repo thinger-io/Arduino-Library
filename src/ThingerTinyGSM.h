@@ -155,6 +155,7 @@ private:
 #ifdef _DISABLE_TLS_
     TinyGsmClient client_;
 #else
+    // TinyGSM exposes this type only for TLS-capable drivers.
     TinyGsmClientSecure client_;
 #endif
 #ifdef THINGER_USE_FUNCTIONAL
