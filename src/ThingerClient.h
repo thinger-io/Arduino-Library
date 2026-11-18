@@ -373,7 +373,7 @@ protected:
 
     virtual void disconnected(){
         thinger_state_listener(SOCKET_TIMEOUT);
-        client_.stop();
+        th_synchronized(client_.stop();)
         thinger_state_listener(SOCKET_DISCONNECTED);
         thinger::thinger::disconnected();
     }
@@ -533,7 +533,7 @@ protected:
 
     bool connect_client(){
         bool connected = false;
-        client_.stop(); // cleanup previous socket
+        th_synchronized(client_.stop();) // cleanup previous socket
         thinger_state_listener(SOCKET_CONNECTING);
         if (connect_socket()) {
             thinger_state_listener(SOCKET_CONNECTED);
@@ -542,7 +542,7 @@ protected:
             connected = thinger::thinger::connect(username_, device_id_, device_password_);
             if(!connected){
                 thinger_state_listener(THINGER_AUTH_FAILED);
-                client_.stop();
+                th_synchronized(client_.stop();)
                 thinger_state_listener(SOCKET_DISCONNECTED);
             }
             else{
@@ -567,7 +567,7 @@ public:
 
     void stop(){
         thinger_state_listener(THINGER_STOP_REQUEST);
-        client_.stop();
+        th_synchronized(client_.stop();)
         thinger_state_listener(SOCKET_DISCONNECTED);
         thinger::thinger::disconnected();
     }
