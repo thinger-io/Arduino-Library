@@ -11,6 +11,7 @@ class Config:public ThingerESP8266WebConfig{
 public:
     Config():ThingerESP8266WebConfig("u","d","c"){}
     using ThingerESP8266WebConfig::save_configuration;
+    using ThingerESP8266WebConfig::load_configuration;
     using ThingerWebConfig<ThingerESP8266>::run_config_portal;
 };
 static int notifications=0;static bool portal_result=true;
@@ -31,7 +32,19 @@ int main(){
         assert(!device.save_configuration(config));
         assert(LittleFS.files[CONFIG_FILE]==original);
         assert(!LittleFS.exists(CONFIG_FILE ".tmp"));
+        // a file system that cannot be mounted is not formatted, and the default config is restored
+        assert(!LittleFS.formatted_on_begin && LittleFS.auto_format);
     }
+    LittleFS=TestFS{};LittleFS.auto_format=false;
+    assert(device.save_configuration(config) && !LittleFS.auto_format && !LittleFS.mounted);
+    // the file system mounted by the sketch stays mounted
+    LittleFS=TestFS{};LittleFS.begin();
+    assert(device.save_configuration(config) && LittleFS.mounted && LittleFS.ends==0);
+    pson loaded;
+    device.load_configuration(loaded); // the mock File does not read back, only the mount state is checked
+    assert(LittleFS.mounted && LittleFS.ends==0);
+    assert(device.clean_credentials() && !LittleFS.exists(CONFIG_FILE));
+    assert(LittleFS.mounted && LittleFS.ends==0);
     LittleFS=TestFS{};LittleFS.files[CONFIG_FILE]=original;
     assert(device.save_configuration(config));
     assert(LittleFS.files[CONFIG_FILE]!=original && !LittleFS.exists(CONFIG_FILE ".tmp"));

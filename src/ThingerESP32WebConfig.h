@@ -26,6 +26,7 @@
 
 #include <FS.h>
 #include <SPIFFS.h>
+#include <esp_spiffs.h>
 #include <Preferences.h>
 #include "ThingerESP32.h"
 #include "ThingerWebConfig.h"
@@ -164,8 +165,10 @@ class ThingerESP32WebConfig : public ThingerWebConfig<ThingerESP32>{
     private:
 
     // the file system is not formatted if it cannot be mounted, as it may hold other data
+    // SPIFFS is only unmounted if it was not mounted before (i.e., by the sketch)
     bool load_spiffs_configuration(pson& config){
-        if(!SPIFFS.begin(false)) return false;
+        bool was_mounted = esp_spiffs_mounted(NULL);
+        if(!was_mounted && !SPIFFS.begin(false)) return false;
         bool result = false;
         if(SPIFFS.exists(CONFIG_FILE)){
             File configFile = SPIFFS.open(CONFIG_FILE, "r");
@@ -175,14 +178,15 @@ class ThingerESP32WebConfig : public ThingerWebConfig<ThingerESP32>{
                 configFile.close();
             }
         }
-        SPIFFS.end();
+        if(!was_mounted) SPIFFS.end();
         return result;
     }
 
     bool remove_spiffs_configuration(){
-        if(!SPIFFS.begin(false)) return false;
+        bool was_mounted = esp_spiffs_mounted(NULL);
+        if(!was_mounted && !SPIFFS.begin(false)) return false;
         bool removed = SPIFFS.exists(CONFIG_FILE) && SPIFFS.remove(CONFIG_FILE);
-        SPIFFS.end();
+        if(!was_mounted) SPIFFS.end();
         return removed;
     }
 

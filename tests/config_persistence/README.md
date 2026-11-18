@@ -19,7 +19,7 @@ implementation; this is a host build, not a cross-compilation.
 
 For a negative control, compile this same test against the unmodified 2.49.0
 src directory (commit c6f62e01e80b5e7379fd7b41322586f295773a36).
-The original version compiles but fails the regression assertions.
+The baseline lacks the new API used by parts of this suite.
 
 ## Coverage
 
@@ -31,3 +31,5 @@ The common portal completion callback now reports false on persistence failure e
 
 The tests include the production headers and small platform/transport doubles.
 No physical board or real service account is required.
+
+A sketch that has already mounted LittleFS retains ownership of its mount and format policy. Otherwise, WebConfig opens a private handle without automatic formatting. Initialize a new partition explicitly at commissioning before saving configuration. The fixture checks both borrowed and privately opened mounts.
