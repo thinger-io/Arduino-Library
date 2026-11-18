@@ -744,8 +744,7 @@ inline void inverted_digital_pin(protoson::pson& in, int pin, bool& current_stat
  */
 
 #ifndef ESP32
-inline void analog_pin(protoson::pson& in, int pin){
-    static int current = in;
+inline void analog_pin(protoson::pson& in, int pin, int& current){
     if(in.is_empty()){
         in = current;
     }
@@ -753,6 +752,12 @@ inline void analog_pin(protoson::pson& in, int pin){
         current = in;
         analogWrite(pin, current);
     }
+}
+
+// Keep the legacy helper signature for sketches that call it directly.
+inline void analog_pin(protoson::pson& in, int pin){
+    static int current = 0;
+    analog_pin(in, pin, current);
 }
 #endif
 
@@ -798,7 +803,7 @@ inline bool inputResource<String>(pson& in, String& value){
     return false;
 }
 
-#define analogPin(PIN) [](pson& in){ analog_pin(in, PIN);}
+#define analogPin(PIN) [](pson& in){ static int current=0; analog_pin(in, PIN, current);}
 #define outputValue(value) [](pson& out){ out = value; }
 #define outputString(value) [](pson& out){ out = value; }
 #define servo(servo) [](pson& in){ if(in.is_empty()) in = (int)servo.read(); else servo.write((int)in); }
