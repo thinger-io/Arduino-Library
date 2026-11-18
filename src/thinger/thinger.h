@@ -133,12 +133,9 @@ namespace thinger{
 #endif
 
         void stop_streams(){
-            if(thinger_resource::get_streaming_counter()>0) {
-                thinger_map<thinger_resource>::entry* current = resources_.begin();
-                while(current!=NULL){
-                    current->value_.disable_streaming();
-                    current = current->next_;
-                }
+            // Event streams have a stream ID but do not increment the sampling counter.
+            for(auto* entry = resources_.begin(); entry; entry = entry->next_){
+                if(entry->value_.stream_enabled()) entry->value_.disable_streaming();
             }
         }
 
