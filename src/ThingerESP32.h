@@ -61,6 +61,11 @@ public:
     #ifndef _DISABLE_TLS_
 protected:
     bool connect_socket() override{
+        th_synchronized(bool connected = connect_secure_socket();)
+        return connected;
+    }
+
+    bool connect_secure_socket(){
 
 #ifdef THINGER_INSECURE_SSL
         client_.setInsecure();
