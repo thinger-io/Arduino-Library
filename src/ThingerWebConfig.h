@@ -63,6 +63,9 @@ public:
         copy_credential(user_, user);
         copy_credential(device_, device);
         copy_credential(credential_, credential);
+        fixed_user_ = user_[0];
+        fixed_device_ = device_[0];
+        fixed_secret_ = credential_[0];
     }
 
     ~ThingerWebConfig(){
@@ -92,15 +95,28 @@ public:
     }
 
     void set_user(const char*user){
-        copy_credential(user_, user);
+        if(copy_credential(user_, user)) fixed_user_ = user_[0];
     }
 
     void set_device(const char*device){
-        copy_credential(device_, device);
+        if(copy_credential(device_, device)) fixed_device_ = device_[0];
     }
 
     void set_credential(const char*credential){
-        copy_credential(credential_, credential);
+        if(copy_credential(credential_, credential)) fixed_secret_ = credential_[0];
+    }
+
+    // Check physical consent (for example, a button) in authorize, and provision
+    // a unique WPA password for this device. Passing nullptr disables recovery.
+    void set_credential_recovery(bool (*authorize)(), const char* portal_password){
+        authorize_recovery_ = nullptr;
+        recovery_pending_ = false;
+        memset(recovery_password_, 0, sizeof(recovery_password_));
+        size_t length = portal_password ? strlen(portal_password) : 0;
+        if(authorize && length >= 8 && length < sizeof(recovery_password_)){
+            memcpy(recovery_password_, portal_password, length + 1);
+            authorize_recovery_ = authorize;
+        }
     }
 
 protected:
@@ -113,7 +129,21 @@ protected:
         return connect_network() ? ThingerDevice::network_status::connected : ThingerDevice::network_status::failed;
     }
 
+    void credentials_rejected() override{
+        recovery_pending_ = authorize_recovery_ && !(fixed_user_ && fixed_device_ && fixed_secret_);
+    }
+
+    bool network_connected() override{
+        return !recovery_pending_ && ThingerDevice::network_connected();
+    }
+
     bool connect_network() override{
+
+        if(recovery_pending_){
+            recovery_pending_ = false;
+            if(authorize_recovery_ && authorize_recovery_()) return recover_credentials();
+            if(ThingerDevice::network_connected()) return true;
+        }
 
         // read current thinger.io credentials from file system
         pson config;
@@ -259,6 +289,48 @@ private:
         memmove(destination, value, strlen(value) + 1);
         return true;
     }
+
+    bool recover_credentials(){
+        pson config;
+        if(!load_configuration(config)) return false;
+        const char* previous_user = user_[0] ? user_ : static_cast<const char*>(config["user"]);
+        const char* previous_device = device_[0] ? device_ : static_cast<const char*>(config["device"]);
+        const char* previous_secret = credential_[0] ? credential_ : static_cast<const char*>(config["credential"]);
+
+        WiFiManager portal;
+        portal.setConfigPortalTimeout(THINGER_WEBCONFIG_PORTAL_TIMEOUT);
+        WiFiManagerParameter user("user", "User Id", previous_user, credential_max_length);
+        WiFiManagerParameter device("device", "Device Id", previous_device, credential_max_length);
+        WiFiManagerParameter secret("credential", "New device credential (blank keeps current)", "", credential_max_length);
+        if(!fixed_user_) portal.addParameter(&user);
+        if(!fixed_device_) portal.addParameter(&device);
+        if(!fixed_secret_) portal.addParameter(&secret);
+        if(!portal.startConfigPortal(THINGER_DEVICE_SSID, recovery_password_)) return false;
+
+        const char* next_user = fixed_user_ ? user_ : user.getValue();
+        const char* next_device = fixed_device_ ? device_ : device.getValue();
+        const char* next_secret = !fixed_secret_ && secret.getValue()[0] ? secret.getValue() : previous_secret;
+        if(!filled_credential(next_user) || !filled_credential(next_device) || !filled_credential(next_secret)) return false;
+
+        // A PSON string is allocated once. Replace the existing value while
+        // preserving any application fields carried in the same object.
+        pson u(next_user), d(next_device), c(next_secret);
+        if(!u.is_string() || !d.is_string() || !c.is_string()) return false;
+        pson::swap(u, config["user"]);
+        pson::swap(d, config["device"]);
+        pson::swap(c, config["credential"]);
+        if(!save_configuration(config)) return false;
+        copy_credential(user_, config["user"]);
+        copy_credential(device_, config["device"]);
+        copy_credential(credential_, config["credential"]);
+        if(config_callback_) config_callback_(config);
+        return true;
+    }
+
+    bool (*authorize_recovery_)() = nullptr;
+    char recovery_password_[64] = {};
+    bool recovery_pending_ = false;
+    bool fixed_user_ = false, fixed_device_ = false, fixed_secret_ = false;
 
     char user_[credential_max_length + 1] = {};
     char device_[credential_max_length + 1] = {};

@@ -89,6 +89,8 @@ namespace thinger{
             stop_streams();
         }
 
+        virtual void credentials_rejected() {}
+
         bool connect(const char* username, const char* device_id, const char* credential){
             // reset keep alive status for each connection
             keep_alive_response = true;
@@ -99,7 +101,9 @@ namespace thinger{
             /** temporal fix for old production server **/
             if(!send_message(message)) return false;
             thinger_message response;
-            return read_message(response) && response.get_signal_flag() == thinger_message::REQUEST_OK;
+            if(read_message(response)!=MESSAGE) return false;
+            if(response.get_signal_flag()==thinger_message::REQUEST_ERROR) credentials_rejected();
+            return response.get_signal_flag()==thinger_message::REQUEST_OK;
 
             /*
              *
