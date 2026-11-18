@@ -8,22 +8,23 @@
 #include <vector>
 #include "WiFi.h"
 
-// Inject failure only into the non-throwing array allocations used for owned
-// credentials. Track their lifetime without depending on private storage fields.
+// Inject failure only into the allocations used for owned credentials (THINGER_WIFI_MALLOC), and
+// track their lifetime without depending on private storage fields.
 static bool fail_next_allocation=false;
 static std::vector<void*> credential_allocations;
-void* operator new[](size_t size, const std::nothrow_t&) noexcept {
+static void* test_malloc(size_t size){
     if(fail_next_allocation){ fail_next_allocation=false; return nullptr; }
     void* p=std::malloc(size);
     if(p) credential_allocations.push_back(p);
     return p;
 }
-void operator delete[](void* p) noexcept {
+static void test_free(void* p){
     auto it=std::find(credential_allocations.begin(), credential_allocations.end(), p);
     if(it!=credential_allocations.end()) credential_allocations.erase(it);
     std::free(p);
 }
-void operator delete[](void* p, const std::nothrow_t&) noexcept { operator delete[](p); }
+#define THINGER_WIFI_MALLOC test_malloc
+#define THINGER_WIFI_FREE test_free
 
 #include "ThingerWifi.h"
 protoson::dynamic_memory_allocator allocator;
@@ -81,13 +82,21 @@ static void test_personal_credentials(){
 #ifdef THINGER_WIFI_MULTI
     assert(failed.networks()==0 && failed.multi().networks.empty());
     failed.multi().reject_next=true;
-    size_t allocations=credential_allocations.size();
     failed.add_wifi("rejected-network", "password");
-    assert(failed.ssid()==nullptr && failed.networks()==0);
-    assert(credential_allocations.size()==allocations);
-#endif
+    // the first network is still connected directly even if WiFiMulti rejects it (as before 2.49.0)
+    assert(std::string(failed.ssid())=="rejected-network" && failed.networks()==0);
+    assert(failed.wifi_begin() && WiFi.ssid=="rejected-network");
+    failed.add_wifi("retry-network", "password");
+    assert(failed.wifi_begin() && failed.multi().runs==1);
+    assert(failed.multi().networks[0].ssid=="retry-network");
+    failed.multi().result=WL_NO_SSID_AVAIL;
+    WiFi.ssid.clear();
+    assert(failed.wifi_begin() && failed.multi().runs==2 && WiFi.ssid=="rejected-network");
+    assert(std::string(failed.ssid())=="rejected-network" && failed.networks()==1);
+#else
     failed.add_wifi("retry-network", "password");
     assert(std::string(failed.ssid())=="retry-network");
+#endif
 
 #ifdef THINGER_WIFI_MULTI
     device.add_wifi("second-network", "second-password");

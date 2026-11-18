@@ -25,8 +25,41 @@
 #define THINGER_WIFI_H
 
 #include "ThingerClient.h"
-#include <memory>
-#include <new>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+
+// allocation of the WiFi credentials copies (they can be replaced, i.e., by tests)
+#ifndef THINGER_WIFI_MALLOC
+    #define THINGER_WIFI_MALLOC malloc
+#endif
+#ifndef THINGER_WIFI_FREE
+    #define THINGER_WIFI_FREE free
+#endif
+
+// owned copy of the WiFi credentials. It uses malloc/free instead of std::unique_ptr, as AVR boards
+// (i.e., Arduino UNO with the WiFi shield, which also includes this file) do not provide <memory>
+class thinger_wifi_storage{
+public:
+    thinger_wifi_storage(){}
+    ~thinger_wifi_storage(){ THINGER_WIFI_FREE(data_); }
+    thinger_wifi_storage(const thinger_wifi_storage&) = delete;
+    thinger_wifi_storage& operator=(const thinger_wifi_storage&) = delete;
+    char* get() const { return data_; }
+    // allocates a new block (only on an empty storage)
+    bool allocate(size_t size){
+        if(data_!=nullptr || size==0) return size==0;
+        data_ = (char*) THINGER_WIFI_MALLOC(size);
+        return data_!=nullptr;
+    }
+    void swap(thinger_wifi_storage& other){
+        char* data = data_;
+        data_ = other.data_;
+        other.data_ = data;
+    }
+private:
+    char* data_ = nullptr;
+};
 
 // ESP32, ESP8266 and the Arduino-Pico core can keep several networks and connect to the strongest one
 #if defined(ESP8266)
@@ -155,9 +188,13 @@ protected:
 #ifdef THINGER_WIFI_MULTI
         // several networks (or an enterprise one): scan and connect to the strongest known network. WiFiMulti does
         // it in a single call, so it blocks the loop for a few seconds
-        if(wifi_networks_>1 || wifi_enterprise_){
+        if(wifi_networks_>1 || wifi_enterprise_ || (direct_only_ && wifi_networks_>0)){
             THINGER_DEBUG_VALUE("NETWORK", "Connecting to the strongest known network. Networks: ", wifi_networks_);
             if(wifi_multi_.run()!=WL_CONNECTED){
+                if(direct_only_ && wifi_ssid_){
+                    wifi_begin_network(wifi_ssid_, wifi_password_);
+                    return true;
+                }
                 THINGER_DEBUG("NETWORK", "Cannot connect to any known network");
                 set_wifi_error();
                 return false;
@@ -243,12 +280,13 @@ public:
 #endif
         const char* values[] = {ssid, password};
         const char* copies[2];
-        std::unique_ptr<char[]> storage;
+        thinger_wifi_storage storage;
         if(!copy_wifi_fields(values, storage, copies)) return;
 #ifdef THINGER_WIFI_MULTI
-        // Do not publish the direct-network copy if registration failed.
-        if(!wifi_multi_.addAP(ssid, password)) return;
-        wifi_networks_++;
+        // the first network is also connected directly (i.e., a hidden network), as in previous versions,
+        // even if WiFiMulti does not accept it
+        if(wifi_multi_.addAP(ssid, password)) wifi_networks_++;
+        else direct_only_ = ssid && *ssid;
 #endif
         wifi_storage_.swap(storage);
         wifi_ssid_ = copies[0];
@@ -267,7 +305,7 @@ public:
         if(ca_pem!=nullptr && enterprise_ssid_==nullptr){
             const char* values[] = {ssid, username, password, identity, ca_pem};
             const char* copies[5];
-            std::unique_ptr<char[]> storage;
+            thinger_wifi_storage storage;
             if(!copy_wifi_fields(values, storage, copies)) return;
             enterprise_storage_.swap(storage);
             enterprise_ssid_ = copies[0];
@@ -289,19 +327,19 @@ private:
     // null fields (e.g. an open network's password) separately from empty strings.
     template <size_t N>
     static bool copy_wifi_fields(const char* const (&values)[N],
-                                std::unique_ptr<char[]>& storage,
+                                thinger_wifi_storage& storage,
                                 const char* (&copies)[N]){
         size_t lengths[N];
         size_t total = 0;
         for(size_t i=0; i<N; ++i){
             lengths[i] = values[i] ? strlen(values[i]) : 0;
             if(values[i]){
-                if(lengths[i] == SIZE_MAX || lengths[i] + 1 > SIZE_MAX - total) return false;
+                if(lengths[i] == ((size_t)-1) || lengths[i] + 1 > ((size_t)-1) - total) return false;
                 total += lengths[i] + 1;
             }
         }
-        std::unique_ptr<char[]> next(total ? new(std::nothrow) char[total] : nullptr);
-        if(total && !next){
+        thinger_wifi_storage next;
+        if(!next.allocate(total)){
             THINGER_DEBUG("NETWORK", "Cannot allocate WiFi credentials");
             return false;
         }
@@ -318,9 +356,9 @@ private:
         return true;
     }
 
-    std::unique_ptr<char[]> wifi_storage_;
+    thinger_wifi_storage wifi_storage_;
 #if defined(ESP32) && CONFIG_ESP_WIFI_ENTERPRISE_SUPPORT
-    std::unique_ptr<char[]> enterprise_storage_;
+    thinger_wifi_storage enterprise_storage_;
 #endif
 
 protected:
@@ -355,6 +393,7 @@ protected:
 #endif
 #ifdef THINGER_WIFI_MULTI
     THINGER_WIFI_MULTI wifi_multi_;
+    bool direct_only_ = false;
     uint8_t wifi_networks_ = 0;
     bool wifi_enterprise_ = false;
 #endif

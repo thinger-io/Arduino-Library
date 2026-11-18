@@ -31,8 +31,7 @@ Coverage:
 - Generic single-network replacement is safe, including input aliases to the
   client's existing credentials and clearing the registration with null fields.
 - Failed allocation preserves the previous registration or leaves an empty client
-  empty; retry succeeds. WiFiMulti rejection does not publish a direct-network
-  registration or leak its candidate storage.
+  empty; retry succeeds. A first network rejected by WiFiMulti remains usable directly. If another network is later accepted, try WiFiMulti first and fall back to the direct network when the scan fails.
 - Additional networks retain WiFiMulti selection behavior and do not replace the
   first direct-network snapshot.
 - The direct Enterprise path owns SSID, username, password, identity and CA text;
@@ -43,7 +42,7 @@ Coverage:
 The WiFiMulti mock models its owning network list and controllable rejection;
 it does not exercise a real WiFi driver. Enterprise calls are tested with mocks,
 not authenticated against an actual EAP server. The allocation override targets
-non-throwing array allocations; it is not a general memory sanitizer.
+the credential storage allocator; it is not a general memory sanitizer.
 
 For a negative control, compile the same test with the unmodified 2.49.0 `src`
 directory on the include path instead of `-Isrc`. The generic and ESP32 tests
