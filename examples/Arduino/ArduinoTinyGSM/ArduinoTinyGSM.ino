@@ -1,6 +1,8 @@
 #define THINGER_SERIAL_DEBUG
 
-// Select your modem:
+// Select your modem. The default build requires a TinyGsmClientSecure driver.
+// In TinyGSM 0.12.0 SIM900, A6/A7 and M590 below expose only a plaintext client.
+// See docs/tinygsm-tls.md before choosing transport and modem credentials.
 #define TINY_GSM_MODEM_SIM800
 //#define TINY_GSM_MODEM_SIM900
 //#define TINY_GSM_MODEM_A6
