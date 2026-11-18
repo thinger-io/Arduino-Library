@@ -31,7 +31,12 @@
 
 #include "ThingerClient.h"
 
+#ifndef NETWORK_REGISTER_TIMEOUT
 #define NETWORK_REGISTER_TIMEOUT 15000
+#endif
+#ifndef THINGER_TINYGSM_RESTART_ATTEMPTS
+#define THINGER_TINYGSM_RESTART_ATTEMPTS 5
+#endif
 #define NETWORK_GPRS_TIMEOUT 15000
 
 class ThingerTinyGSM : public ThingerClient
@@ -70,35 +75,42 @@ protected:
             return false;
         }
 
-        if(module_reset_) module_reset_();
-
         if(!modem_.isNetworkConnected()){
-            THINGER_DEBUG("NETWORK", "Initializing Modem...")
-            if(!modem_.restart()){
-                THINGER_DEBUG("NETWORK", "Cannot init modem! Is it connected?")
-                set_error(MODEM_NOT_RESPONDING);
-                return false;
-            }else{
-                THINGER_DEBUG_VALUE("NETWORK", "Modem Info: ", modem_.getModemInfo());
-
-                // Unlock your SIM card with a PIN if needed
-                if(pin_!=nullptr && modem_.getSimStatus() != 3){
-                    THINGER_DEBUG_VALUE("NETWORK", "Unlocking SIM... ", pin_)
-                    if(!modem_.simUnlock(pin_)){
-                        THINGER_DEBUG("NETWORK", "Cannot unlock SIM!")
-                        set_error(MODEM_SIM_ERROR);
-                        return false;
-                    }
-                }
-
-                THINGER_DEBUG("NETWORK", "Waiting for Network...")
-                if(!modem_.waitForNetwork(NETWORK_REGISTER_TIMEOUT)) {
-                    THINGER_DEBUG("NETWORK", "Cannot connect network!")
-                    set_error(NETWORK_NOT_REGISTERED);
+            // the modem is restarted on the first connection, and after several failed registrations. Restarting
+            // it on every attempt would restart the network search, so it could never register with poor coverage
+            if(!modem_ready_ || register_failures_>=THINGER_TINYGSM_RESTART_ATTEMPTS){
+                if(module_reset_) module_reset_();
+                THINGER_DEBUG("NETWORK", "Initializing Modem...")
+                if(!modem_.restart()){
+                    THINGER_DEBUG("NETWORK", "Cannot init modem! Is it connected?")
+                    set_error(MODEM_NOT_RESPONDING);
+                    modem_ready_ = false;
                     return false;
                 }
-                THINGER_DEBUG("NETWORK", "Network Connected!")
+                modem_ready_ = true;
+                register_failures_ = 0;
+                THINGER_DEBUG_VALUE("NETWORK", "Modem Info: ", modem_.getModemInfo());
             }
+
+            // Unlock your SIM card with a PIN if needed
+            if(pin_!=nullptr && modem_.getSimStatus() != 3){
+                THINGER_DEBUG_VALUE("NETWORK", "Unlocking SIM... ", pin_)
+                if(!modem_.simUnlock(pin_)){
+                    THINGER_DEBUG("NETWORK", "Cannot unlock SIM!")
+                    set_error(MODEM_SIM_ERROR);
+                    return false;
+                }
+            }
+
+            THINGER_DEBUG("NETWORK", "Waiting for Network...")
+            if(!modem_.waitForNetwork(NETWORK_REGISTER_TIMEOUT)) {
+                THINGER_DEBUG("NETWORK", "Cannot connect network!")
+                set_error(NETWORK_NOT_REGISTERED);
+                register_failures_++;
+                return false;
+            }
+            register_failures_ = 0;
+            THINGER_DEBUG("NETWORK", "Network Connected!")
         }
 
         if(!modem_.isGprsConnected()){
@@ -147,6 +159,8 @@ public:
     }
 
 private:
+    bool modem_ready_ = false;
+    unsigned int register_failures_ = 0;
     const char* apn_        = nullptr;
     const char* user_       = nullptr;
     const char* password_   = nullptr;
