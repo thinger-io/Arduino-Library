@@ -124,9 +124,9 @@ protected:
             const char* saved_user = config["user"];
             const char* saved_device = config["device"];
             const char* saved_credential = config["credential"];
-            thinger_config = (user_[0] || valid_credential(saved_user)) &&
-                             (device_[0] || valid_credential(saved_device)) &&
-                             (credential_[0] || valid_credential(saved_credential));
+            thinger_config = (user_[0] || filled_credential(saved_user)) &&
+                             (device_[0] || filled_credential(saved_device)) &&
+                             (credential_[0] || filled_credential(saved_credential));
             if(thinger_config){
                 if(!user_[0]) copy_credential(user_, saved_user);
                 if(!device_[0]) copy_credential(device_, saved_device);
@@ -210,9 +210,9 @@ protected:
         }
 
         // Validate the complete update before modifying or saving credentials.
-        if((!user_[0] && !valid_credential(user_parameter.getValue())) ||
-           (!device_[0] && !valid_credential(device_parameter.getValue())) ||
-           (!credential_[0] && !valid_credential(credential_parameter.getValue()))){
+        if((!user_[0] && !filled_credential(user_parameter.getValue())) ||
+           (!device_[0] && !filled_credential(device_parameter.getValue())) ||
+           (!credential_[0] && !filled_credential(credential_parameter.getValue()))){
             if(wifi_callback_!=NULL) wifi_callback_(false);
             return false;
         }
@@ -238,6 +238,11 @@ protected:
 
 private:
     static const size_t credential_max_length = 40;
+
+    // Empty constructor defaults request provisioning; persisted fields must be complete.
+    static bool filled_credential(const char* value){
+        return value && *value && valid_credential(value);
+    }
 
     static bool valid_credential(const char* value){
         if(value){

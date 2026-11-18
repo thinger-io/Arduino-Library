@@ -36,8 +36,9 @@ int main(){
         WiFiManager manager;c.run_config_portal(manager,true);
         assert(c.saved_value==(n<=40?(n?value:WiFiManager::submitted):"old"));
         Config portal;WiFiManager::submitted=value;WiFiManager m;
-        assert(portal.run_config_portal(m,true)==(n<=40));
-        assert(portal.saves==(n<=40?1:0));
+        // empty credentials are not saved either (the portal would not open again to fix them)
+        assert(portal.run_config_portal(m,true)==(n>0 && n<=40));
+        assert(portal.saves==(n>0 && n<=40?1:0));
     }
     WiFiManager::submitted="portal";
     Config loaded;loaded.load=true;loaded.saved_value=std::string(40,'v');
