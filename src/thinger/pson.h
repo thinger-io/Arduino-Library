@@ -724,6 +724,39 @@ namespace protoson {
             return true;
         }
 
+        // Restrict nested reads to their enclosing length. Restore the parent
+        // budget even on error. read_ counts completed transport operations.
+        size_t remaining_ = SIZE_MAX;
+        bool limited_ = false;
+
+        bool fits(uintmax_t bytes) const {
+            return bytes <= SIZE_MAX && (!limited_ || bytes <= remaining_);
+        }
+
+        bool read_checked(void* buffer, size_t bytes){
+            if(limited_ && bytes > remaining_) return false;
+            if(!read(buffer, bytes)) return false;
+            if(limited_) remaining_ -= bytes;
+            return true;
+        }
+
+        class scope {
+        public:
+            scope(pson_decoder& decoder, size_t length)
+                : decoder_(decoder), previous_(decoder.remaining_), start_(decoder.read_), limited_(decoder.limited_) {
+                decoder_.remaining_ = length;
+                decoder_.limited_ = true;
+            }
+            ~scope(){
+                decoder_.remaining_ = limited_ ? previous_ - (size_t)(decoder_.read_ - start_) : SIZE_MAX;
+                decoder_.limited_ = limited_;
+            }
+        private:
+            pson_decoder& decoder_;
+            size_t previous_, start_;
+            bool limited_;
+        };
+
     public:
 
         pson_decoder() : read_(0) {
@@ -752,7 +785,7 @@ namespace protoson {
             uint8_t byte;
             uint8_t bit_pos = 0;
             do{
-                if(!read(&byte, 1) || bit_pos>=32){
+                if(bit_pos>=32 || !read_checked(&byte, 1) || (bit_pos==28 && byte>15)){
                     return false;
                 }
                 varint |= (uint32_t)(byte&0x7F) << bit_pos;
@@ -767,7 +800,7 @@ namespace protoson {
             uint8_t byte;
             uint8_t bit_pos = 0;
             do{
-                if(!read(&byte, 1) || bit_pos>=64){
+                if(bit_pos>=64 || !read_checked(&byte, 1) || (bit_pos==63 && byte>1)){
                     return false;
                 }
                 varint |= (uint32_t)(byte&0x7F) << bit_pos;
@@ -780,7 +813,7 @@ namespace protoson {
             uint8_t byte;
             bool success = true;
             for(size_t i=0; i<size && success; i++){
-                success = read(&byte, 1);
+                success = read_checked(&byte, 1);
             }
             return success;
         }
@@ -789,13 +822,13 @@ namespace protoson {
             uint8_t byte;
             bool success;
             do{
-                success = read(&byte, 1);
-            }while(byte>0x80 && success);
+                success = read_checked(&byte, 1);
+            }while(success && (byte & 0x80));
             return success;
         }
 
         bool pb_read_string(char *str, size_t size){
-            if(str && read(str, size)){
+            if(str && read_checked(str, size)){
                 str[size]=0;
                 return true;
             }
@@ -808,7 +841,7 @@ namespace protoson {
             uint8_t byte=0;
             uint8_t bytes_read=0;
             do{
-                if(bytes_read==10 || !read(&byte, 1)) return false;
+                if(bytes_read==10 || !read_checked(&byte, 1)) return false;
                 temp[bytes_read] = byte;
                 bytes_read++;
             }while(byte>=0x80);
@@ -823,8 +856,9 @@ namespace protoson {
     public:
 
         bool decode(pson_object & object, size_t size){
-            size_t start_read = bytes_read();
-            while(size-(bytes_read()-start_read)>0){
+            if(!fits(size)) return false;
+            scope limit(*this, size);
+            while(remaining_){
                 pson_pair* pair = object.create_item();
                 if(pair==NULL || !decode(*pair)){
                     return false;
@@ -834,8 +868,9 @@ namespace protoson {
         }
 
         bool decode(pson_array & array, size_t size){
-            size_t start_read = bytes_read();
-            while(size-(bytes_read()-start_read)>0){
+            if(!fits(size)) return false;
+            scope limit(*this, size);
+            while(remaining_){
                 pson* item = array.create_item();
                 if(item==NULL || !decode(*item)){
                     return false;
@@ -846,8 +881,8 @@ namespace protoson {
 
         bool decode(pson_pair & pair){
             uint32_t name_size;
-            if(pb_decode_varint32(name_size)){
-                return name_size != UINT32_MAX && pair.allocate_name(name_size + 1) && pb_read_string(pair.name(), name_size) && decode(pair.value());
+            if(pb_decode_varint32(name_size) && fits(name_size) && (size_t)name_size < SIZE_MAX){
+                return pair.allocate_name((size_t)name_size + 1) && pb_read_string(pair.name(), name_size) && decode(pair.value());
             }
             return false;
         }
@@ -859,14 +894,14 @@ namespace protoson {
             value.set_type((pson::field_type)field_number);
             if(wire_type==length_delimited){
                 uint32_t size = 0;
-                if(!pb_decode_varint32(size)) return false;
+                if(!pb_decode_varint32(size) || !fits(size)) return false;
                 switch(field_number){
                     case pson::string_field:
-                        return size!=UINT32_MAX && value.allocate(size+1) && pb_read_string((char*)value.get_value(), size);
+                        return (size_t)size<SIZE_MAX && value.allocate((size_t)size+1) && pb_read_string((char*)value.get_value(), size);
                     case pson::bytes_field: {
                         uint8_t varint_size = value.get_varint_size(size);
-                        if(size<=UINT32_MAX-varint_size && value.allocate(size + varint_size)){
-                            if(read((char*)value.get_value() + varint_size, size)){
+                        if((size_t)size<=SIZE_MAX-varint_size && value.allocate((size_t)size + varint_size)){
+                            if(read_checked((char*)value.get_value() + varint_size, size)){
                                 value.pb_encode_varint(size);
                                 return true;
                             }
@@ -892,9 +927,9 @@ namespace protoson {
                     case pson::varint_field:
                         return pb_read_varint(value);
                     case pson::float_field:
-                        return value.allocate(4) && read(value.get_value(), 4);
+                        return value.allocate(4) && read_checked(value.get_value(), 4);
                     case pson::double_field:
-                        return value.allocate(8) && read(value.get_value(), 8);
+                        return value.allocate(8) && read_checked(value.get_value(), 8);
                     case pson::null_field:
                     case pson::true_field:
                     case pson::false_field:

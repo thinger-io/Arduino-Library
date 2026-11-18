@@ -32,15 +32,16 @@ namespace thinger{
     class thinger_decoder : public protoson::pson_decoder{
     public:
         bool decode(thinger_message&  message, size_t size){
-            size_t start_read = bytes_read();
-            while(size-(bytes_read()-start_read)>0) {
+            if(!fits(size)) return false;
+            scope limit(*this, size);
+            while(remaining_) {
                 protoson::pb_wire_type wire_type;
                 uint32_t field_number=0;
                 if(!pb_decode_tag(wire_type, field_number)) return false;
                 switch (wire_type) {
                     case protoson::length_delimited:{
                         uint32_t size = 0;
-                        if(!pb_decode_varint32(size) || !pb_skip(size)) return false;
+                        if(!pb_decode_varint32(size) || !fits(size) || !pb_skip(size)) return false;
                     }
                         break;
                     case protoson::varint: {
@@ -76,8 +77,12 @@ namespace thinger{
                             case thinger_message::PAYLOAD:
                                 if(!protoson::pson_decoder::decode(((protoson::pson&) message))) return false;
                                 break;
-                            default:
+                            default:{
+                                // unknown field: decode it to skip its bytes, so the stream stays in sync
+                                protoson::pson unknown;
+                                if(!protoson::pson_decoder::decode(unknown)) return false;
                                 break;
+                            }
                         }
                         break;
                     case protoson::fixed_32:
@@ -87,7 +92,8 @@ namespace thinger{
                         if(!pb_skip(8)) return false;
                         break;
                     default:
-                        break;
+                        // unsupported wire type: its size is unknown, so the stream cannot be followed
+                        return false;
                 }
             }
             return true;
@@ -115,7 +121,7 @@ namespace thinger{
 
     protected:
         virtual bool read(void* buffer, size_t size){
-            if(read_+size<=size_){
+            if(read_ <= size_ && size <= size_ - read_){
                 memcpy(buffer, buffer_ + read_, size);
                 return protoson::pson_decoder::read(buffer, size);
             }else{

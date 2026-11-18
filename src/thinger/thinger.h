@@ -371,8 +371,9 @@ namespace thinger{
             // handle input
             if(bytes_available){
                 thinger_message message;
-                th_synchronized(bool result = read_message(message)==MESSAGE;)
-                if(result) handle_request_received(message);
+                th_synchronized(message_type result = read_message(message);)
+                if(result==NONE) return;
+                if(result==MESSAGE) handle_request_received(message);
             }
 
             // handle keep alive (send keep alive to server to prevent disconnection)
@@ -420,19 +421,31 @@ namespace thinger{
          * @return true or false if the message passed in reference was filled with a valid message.
          */
         message_type read_message(thinger_message& message){
+            size_t start = decoder.bytes_read();
+            message_type result = decode_message(message);
+            if(result==NONE && decoder.bytes_read()!=start) disconnected();
+            return result;
+        }
+
+        message_type decode_message(thinger_message& message){
             uint32_t type = 0;
             if(decoder.pb_decode_varint32(type)){
                 switch(type){
                     case MESSAGE: {
                         // decode message size & message itself
                         uint32_t size = 0;
-                        return decoder.pb_decode_varint32(size) && decoder.decode(message, size) ? MESSAGE : NONE;
+                        if(!decoder.pb_decode_varint32(size)) return NONE;
+#if SIZE_MAX < UINT32_MAX
+                        if(size > SIZE_MAX) return NONE;
+#endif
+                        return decoder.decode(message, (size_t)size) ? MESSAGE : NONE;
                     }
                     case KEEP_ALIVE: {
                         // update our keep_alive flag (connection active)
                         keep_alive_response = true;
                         // skip size bytes in keep alive (always 0)
-                        return decoder.pb_skip_varint() ? KEEP_ALIVE : NONE;
+                        uint32_t length = 0;
+                        return decoder.pb_decode_varint32(length) && length==0 ? KEEP_ALIVE : NONE;
                     }
                 }
             }
