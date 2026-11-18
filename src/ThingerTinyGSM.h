@@ -54,8 +54,19 @@ public:
     }
 
     ~ThingerTinyGSM(){
+#ifdef THINGER_FREE_RTOS
+        ThingerESP32FreeRTOS::stop();
+#endif
 
     }
+
+#ifdef THINGER_FREE_RTOS
+    // Called from a worker callback, closing is deferred until handle() returns.
+    bool stop(TickType_t timeout=portMAX_DELAY){
+        return stop_worker(timeout, true);
+    }
+#endif
+
 
 protected:
 
